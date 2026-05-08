@@ -32,19 +32,35 @@ from ui.styles import DARK_THEME_STYLESHEET
 # LOGGING SETUP
 # ============================================================================
 def setup_logging():
-    """Cấu hình logging cho toàn app."""
+    """Cấu hình logging cho toàn app với rotating file (10 MB × 5 file)."""
+    from logging.handlers import RotatingFileHandler
+
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     log_file = LOGS_DIR / "veo_suite.log"
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    fmt = logging.Formatter(
+        "%(asctime)s [%(name)s] %(levelname)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            logging.FileHandler(str(log_file), encoding="utf-8"),
-            logging.StreamHandler(sys.stdout),
-        ]
     )
+
+    file_handler = RotatingFileHandler(
+        str(log_file),
+        maxBytes=10 * 1024 * 1024,   # 10 MB / file
+        backupCount=5,                # giữ 5 file cũ
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(fmt)
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(fmt)
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    # Tránh tích luỹ handler khi setup_logging được gọi lại
+    for h in list(root.handlers):
+        root.removeHandler(h)
+    root.addHandler(file_handler)
+    root.addHandler(stream_handler)
 
 
 # ============================================================================

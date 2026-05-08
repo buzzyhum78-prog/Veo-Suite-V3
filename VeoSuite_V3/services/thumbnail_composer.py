@@ -282,7 +282,7 @@ class ThumbnailComposer:
 
         try: 
             return ImageFont.truetype(path, size)
-        except: 
+        except Exception: 
             return ImageFont.load_default()
 
     def _create_gradient(self, w, h, direction="left"):
@@ -520,7 +520,7 @@ VIDEO TOPIC: {topic}"""
             import shutil
             try:
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            except:
+            except Exception:
                 pass
             
             if success:

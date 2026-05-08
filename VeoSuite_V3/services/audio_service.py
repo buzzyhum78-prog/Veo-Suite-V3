@@ -368,7 +368,7 @@ class AudioService:
             # Cleanup temp WAV
             try:
                 os.remove(wav_path)
-            except:
+            except Exception:
                 pass
 
             # 7. Create dummy SRT (LuxTTS doesn't produce subtitles)

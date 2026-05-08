@@ -122,7 +122,7 @@ def run_factory():
     
     # Kiểm tra rembg
     try: import rembg
-    except: 
+    except Exception: 
         print("⚠️ Chưa cài rembg -> Sẽ lưu ảnh nền trắng.")
 
     total_tasks = sum(len(v) for v in ASSET_WISH_LIST.values())

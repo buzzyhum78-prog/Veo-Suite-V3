@@ -296,16 +296,16 @@ class VideoAssembler:
             log("🧹 Dọn dẹp file tạm...")
             for seg in temp_segments:
                 try: os.remove(seg)
-                except: pass
+                except Exception: pass
             for tmp in [concat_file, merged_video]:
                 try: os.remove(tmp)
-                except: pass
+                except Exception: pass
             mixed_tmp = os.path.join(self.output_dir, "_mixed_audio.mp3")
             silent_tmp = os.path.join(self.output_dir, "_silent_bgm.mp3")
             for tmp in [mixed_tmp, silent_tmp]:
                 if os.path.exists(tmp):
                     try: os.remove(tmp)
-                    except: pass
+                    except Exception: pass
             
             if os.path.exists(output_path):
                 # Lấy kích thước file

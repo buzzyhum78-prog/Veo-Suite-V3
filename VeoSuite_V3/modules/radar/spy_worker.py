@@ -1,4 +1,5 @@
 
+import logging
 import os
 import sys
 import time
@@ -49,6 +50,9 @@ except ImportError:
 
 from modules.radar.constants import *
 
+logger = logging.getLogger("VeoSuite.Radar.SpyWorker")
+
+
 class SpyMetadataWorker(QThread):
     finished = pyqtSignal(dict) # Trả về gói dữ liệu đầy đủ
 
@@ -72,7 +76,7 @@ class SpyMetadataWorker(QThread):
             version = pkg_resources.get_distribution("youtube-transcript-api").version
             # Nếu là bản 1.2.3 quái lạ kia hoặc không phải 0.6.x -> Cài lại ngay
             if version == "1.2.3" or not version.startswith("0.6"):
-                print(f"⚠️ Phát hiện bản youtube-transcript-api lạ ({version}). Đang cài lại bản chuẩn...")
+                logger.info(f"⚠️ Phát hiện bản youtube-transcript-api lạ ({version}). Đang cài lại bản chuẩn...")
                 raise ImportError("Wrong version")
                 
             from youtube_transcript_api import YouTubeTranscriptApi
@@ -81,16 +85,16 @@ class SpyMetadataWorker(QThread):
                 
         except (ImportError, Exception):
             # Lệnh cưỡng chế cài lại
-            print("⏳ Đang cài đặt lại thư viện Subtitle...")
+            logger.info("⏳ Đang cài đặt lại thư viện Subtitle...")
             try:
                 subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "youtube-transcript-api"])
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "youtube-transcript-api==0.6.2"])
-                print("✅ Đã cài xong bản 0.6.2! Vui lòng khởi động lại Tool.")
+                logger.info("✅ Đã cài xong bản 0.6.2! Vui lòng khởi động lại Tool.")
                 # Gửi tín hiệu báo user khởi động lại
                 self.finished.emit({"success": False, "error": "Đã cập nhật thư viện Sub. Vui lòng TẮT TOOL và mở lại để có hiệu lực!"})
                 return
             except Exception as e:
-                print(f"Lỗi cài đặt: {e}")
+                logger.info(f"Lỗi cài đặt: {e}")
         
         # [MỚI] Load Proxy từ cấu hình chung (nếu CEO đã bật bên Admin)
         # Giả sử biến PROXY_CONFIG đã được load ở đầu file
@@ -100,16 +104,16 @@ class SpyMetadataWorker(QThread):
              http_proxy = PROXY_CONFIG["HTTP_PROXY"]
              # Format cho thư viện transcript
              proxy_opts = {"http": PROXY_CONFIG["HTTP_PROXY"], "https": PROXY_CONFIG["HTTPS_PROXY"]}
-             print(f"🕵️ Spy đang chạy qua Proxy: {http_proxy}")
+             logger.info(f"🕵️ Spy đang chạy qua Proxy: {http_proxy}")
 
         # [QUAN TRỌNG] ĐƯỜNG DẪN COOKIES
         # Tool sẽ tự tìm file cookies.txt ở thư mục gốc
         cookies_path = "cookies.txt" if os.path.exists("cookies.txt") else None
         
         if cookies_path:
-            print(f"🍪 Đã tìm thấy Cookies: {cookies_path} -> Kích hoạt chế độ User thật!")
+            logger.info(f"🍪 Đã tìm thấy Cookies: {cookies_path} -> Kích hoạt chế độ User thật!")
         else:
-            print("⚠️ Không thấy 'cookies.txt'. Một số video có thể không lấy được Sub.")
+            logger.info("⚠️ Không thấy 'cookies.txt'. Một số video có thể không lấy được Sub.")
 
         # Cấu hình yt-dlp (Lấy nhanh, không tải video)
         ydl_opts = {
@@ -173,11 +177,11 @@ class SpyMetadataWorker(QThread):
                         img = QImage()
                         img.loadFromData(resp.content)
                         data["pixmap_thumb"] = QPixmap.fromImage(img)
-                except: 
+                except Exception: 
                     data["pixmap_thumb"] = None
 
         except Exception as e:
-            print(f"❌ Lỗi yt-dlp: {e}")
+            logger.info(f"❌ Lỗi yt-dlp: {e}")
             self.finished.emit({"success": False, "error": str(e)})
             return # Dừng luôn nếu không lấy được info cơ bản
         
@@ -186,7 +190,7 @@ class SpyMetadataWorker(QThread):
         # ------------------------------------------------------------------
         try:
             # --- CÁCH 1: DÙNG API WRAPPER (NHANH NHẤT) ---
-            print("🚀 [Try 1] Đang thử lấy Sub bằng API...")
+            logger.info("🚀 [Try 1] Đang thử lấy Sub bằng API...")
             from youtube_transcript_api import YouTubeTranscriptApi
             from youtube_transcript_api.formatters import TextFormatter 
             
@@ -194,21 +198,21 @@ class SpyMetadataWorker(QThread):
             
             transcript = None
             try: transcript = next(iter(transcript_list._manually_created_transcripts.values()))
-            except:
+            except Exception:
                 try: transcript = next(iter(transcript_list._generated_transcripts.values()))
-                except: pass
+                except Exception: pass
 
             if transcript:
                 formatter = TextFormatter()
                 full_transcript = formatter.format_transcript(transcript.fetch())
-                print("✅ Lấy Sub thành công bằng API!")
+                logger.info("✅ Lấy Sub thành công bằng API!")
                 
         except Exception as e1:
-            print(f"⚠️ Cách 1 thất bại ({str(e1)}). Chuyển sang Cách 2...")
+            logger.info(f"⚠️ Cách 1 thất bại ({str(e1)}). Chuyển sang Cách 2...")
             
             # --- CÁCH 2: DÙNG YT-DLP URL (FALLBACK) ---
             if yt_dlp_sub_info:
-                print("🚀 [Cách 2] Đang tải Sub từ Link yt-dlp...")
+                logger.info("🚀 [Cách 2] Đang tải Sub từ Link yt-dlp...")
                 import re 
                 import json
                 # 1. Tìm ngôn ngữ ưu tiên (Việt -> Anh -> Nhật -> Hàn)
@@ -241,7 +245,7 @@ class SpyMetadataWorker(QThread):
                             full_transcript = ""
 
                             # [DEBUG] Xem header để biết định dạng gì
-                            print(f"📦 Header Sub: {raw_sub[:50].replace(chr(10), ' ')}...")
+                            logger.info(f"📦 Header Sub: {raw_sub[:50].replace(chr(10), ' ')}...")
 
                             # --- XỬ LÝ ĐỊNH DẠNG JSON3 (Youtube mới) ---
                             if "events" in raw_sub and "segs" in raw_sub:
@@ -255,8 +259,8 @@ class SpyMetadataWorker(QThread):
                                             line_text = line_text.replace('\n', ' ').strip()
                                             if line_text: lines.append(line_text)
                                     full_transcript = " ".join(lines)
-                                    print("-> Đã parse theo định dạng JSON3.")
-                                except: pass
+                                    logger.info("-> Đã parse theo định dạng JSON3.")
+                                except Exception: pass
                             
                             # --- TRƯỜNG HỢP B: XML / SRV1 (Youtube Cổ điển - HAY GẶP NHẤT) ---
                             if not full_transcript and ("<text" in raw_sub or "<p" in raw_sub):
@@ -274,9 +278,9 @@ class SpyMetadataWorker(QThread):
                                             if "{" not in clean_line:  # Bỏ qua nếu dòng chứa JSON lạ
                                                 lines.append(clean_line)                                            
                                     full_transcript = " ".join(lines)
-                                    print("-> Đã parse theo định dạng XML (srv1).")
+                                    logger.info("-> Đã parse theo định dạng XML (srv1).")
                                 except Exception as e_xml:
-                                    print(f"-> Lỗi parse XML: {e_xml}")
+                                    logger.info(f"-> Lỗi parse XML: {e_xml}")
 
                             # --- TRƯỜNG HỢP C: VTT / RAW (Xử lý dòng-từng-dòng chuẩn xác) ---
                             if not full_transcript:
@@ -311,17 +315,17 @@ class SpyMetadataWorker(QThread):
                                             last_line = line
                                             
                                     full_transcript = " ".join(unique_lines)
-                                    print("-> Đã parse theo thuật toán Universal Cleaner.")
+                                    logger.info("-> Đã parse theo thuật toán Universal Cleaner.")
                                 except Exception as e_univ:
-                                    print(f"Lỗi Universal Cleaner: {e_univ}")
+                                    logger.info(f"Lỗi Universal Cleaner: {e_univ}")
 
                             if full_transcript and len(full_transcript) > 50:
-                                print(f"✅ [Cách 2] Thành công! Độ dài: {len(full_transcript)} ký tự.")
+                                logger.info(f"✅ [Cách 2] Thành công! Độ dài: {len(full_transcript)} ký tự.")
                             else:
-                                print(f"⚠️ [Cách 2] Thất bại. Raw sub không chứa nội dung text.")
+                                logger.info(f"⚠️ [Cách 2] Thất bại. Raw sub không chứa nội dung text.")
 
                     except Exception as e_sub:
-                        print(f"❌ [Cách 2] Lỗi tải/xử lý sub: {e_sub}")
+                        logger.info(f"❌ [Cách 2] Lỗi tải/xử lý sub: {e_sub}")
                         # Không làm gì cả, để nó tự trôi xuống Fallback (Description)
 
         # ------------------------------------------------------------------
@@ -334,7 +338,7 @@ class SpyMetadataWorker(QThread):
         else:
             # [QUAN TRỌNG] Nếu video không có sub (Lofi, Music...)
             # Thay vì để rỗng khiến AI bị ngu, ta lấy DESCRIPTION đắp vào
-            print("💡 Không tìm thấy Sub -> Dùng Description thay thế cho AI.")
+            logger.info("💡 Không tìm thấy Sub -> Dùng Description thay thế cho AI.")
             # [NÂNG CẤP] BỘ LỌC MÁY CHÉM NGAY TẠI NGUỒN
             import re
             raw_desc = video_description or ""
