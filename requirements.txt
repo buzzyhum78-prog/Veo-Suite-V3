@@ -1,0 +1,35 @@
+# ============================================================================
+# VEO SUITE V3 — Production dependencies (pinned)
+# ============================================================================
+# Cài đặt:  pip install -r requirements.txt
+# File này là "single source of truth" cho deps. File cũ
+#   VeoSuite_V3/requirements.txt  giữ lại làm backward-compat (đọc từ file này).
+# ============================================================================
+
+# --- Core UI ---
+PyQt6>=6.5,<6.9
+
+# --- AI & LLM ---
+google-generativeai>=0.8,<1.0
+requests>=2.31,<3.0
+
+# --- Voice / TTS ---
+edge-tts>=6.1,<8.0
+
+# --- Image processing ---
+pillow>=10.0,<12.0
+
+# --- Translation ---
+deep-translator>=1.11,<2.0
+
+# --- Browser automation (Publisher) ---
+playwright>=1.40,<2.0
+
+# --- Environment variables ---
+python-dotenv>=1.0,<2.0
+
+# --- Optional (uncomment khi cần) ---
+# rembg>=2.0          # background removal cho thumbnail
+# onnxruntime>=1.16   # backend cho rembg
+# openai>=1.0         # OpenAI TTS / embeddings
+# google-cloud-texttospeech>=2.14  # GCP TTS premium

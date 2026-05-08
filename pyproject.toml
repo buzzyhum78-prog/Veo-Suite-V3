@@ -1,0 +1,61 @@
+# ============================================================================
+# VEO SUITE V3 — pyproject.toml
+# ============================================================================
+# File này chỉ cấu hình *tooling* (ruff, pytest, pyright). Repo dùng layout
+# script-style (sys.path += VeoSuite_V3/), không build wheel/installable.
+# Nếu sau này muốn package ra wheel, đổi mục [project] và bật build-system.
+# ============================================================================
+
+[tool.ruff]
+target-version = "py311"
+line-length = 110
+extend-exclude = [
+    "VeoSuite_V3/output",
+    "VeoSuite_V3/logs",
+    "VeoSuite_V3/database/veo_suite.db",
+    "scratch",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Bộ rule cân bằng: pyflakes + pycodestyle (E/W) + isort (I) + bugbear (B)
+# + comprehensions (C4) + simplify (SIM) + unused-args (ARG).
+# KHÔNG bật toàn bộ "ALL" để tránh ngập warnings ở giai đoạn dọn dẹp đầu tiên.
+select = ["E", "F", "W", "I", "B", "C4", "SIM", "UP"]
+ignore = [
+    "E501",   # line-too-long: vài chỗ tiếng Việt không vỡ được dễ
+    "B008",   # function call in default argument (PyQt signals/QObject patterns)
+    "SIM108", # ternary if/else (đôi khi đọc khó hơn if/else)
+    "UP015",  # open(..., 'r') — giữ rõ nghĩa
+]
+
+[tool.ruff.lint.per-file-ignores]
+"VeoSuite_V3/main.py" = ["E402"]  # sys.path.insert phải chạy TRƯỚC import
+"tests/*.py" = ["E402", "F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"  # giữ CRLF cho file hiện đang dùng CRLF
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["VeoSuite_V3"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.pyright]
+include = ["VeoSuite_V3"]
+exclude = [
+    "VeoSuite_V3/output",
+    "VeoSuite_V3/logs",
+    "scratch",
+]
+pythonVersion = "3.11"
+reportMissingImports = "warning"
+reportGeneralTypeIssues = "warning"
+typeCheckingMode = "basic"
