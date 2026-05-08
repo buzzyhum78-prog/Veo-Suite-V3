@@ -27,6 +27,17 @@ from modules.assets_factory.subtitle_engine import SubtitleEngine
 
 logger = logging.getLogger("VeoSuite.AssetsFactory.Workers")
 
+
+def _get_pixabay_key() -> str:
+    """Lấy Pixabay API key từ env > AIFactory registry. Trả "" nếu không cấu hình."""
+    env_key = os.getenv("PIXABAY_API_KEY", "").strip()
+    if env_key:
+        return env_key
+    try:
+        return AIFactory().get_api_key("pixabay") or ""
+    except Exception:
+        return ""
+
 # Voice config path
 VOICE_CONFIG_FILE = "VEO_DB/voice_engine_config.json"
 
@@ -76,10 +87,19 @@ class MusicSearchWorker(QThread):
         self.query = query
 
     def run(self):
-        pixabay_key = "43267597-d867c4709292c300885e3474d" # Community Key
+        pixabay_key = _get_pixabay_key()
         url = "https://pixabay.com/api/audio/"
-        
+
         results = []
+        if not pixabay_key:
+            logger.warning(
+                "Pixabay API key chưa được cấu hình. Hãy đặt biến môi trường "
+                "PIXABAY_API_KEY hoặc nhập key trong Tab Quản Trị (provider 'pixabay'). "
+                "Lấy key miễn phí tại https://pixabay.com/api/docs/."
+            )
+            self.finished_signal.emit([])
+            return
+
         try:
             resp = requests.get(url, params={
                 "key": pixabay_key,

@@ -30,17 +30,23 @@ class StockService:
     def __init__(self, api_key_pexels: str = None, api_key_pixabay: str = None):
         self.ai = AIFactory()
 
-        # Pexels key: truyền vào > registry > rỗng
-        self.pexels_key = api_key_pexels
-        if not self.pexels_key:
-            self.pexels_key = (
-                self.ai.registry.get("providers", {})
-                .get("pexels", {})
-                .get("api_key", "")
-            )
+        # Pexels key: truyền vào > env > registry > rỗng
+        self.pexels_key = (
+            api_key_pexels
+            or os.getenv("PEXELS_API_KEY", "").strip()
+            or self.ai.registry.get("providers", {})
+            .get("pexels", {})
+            .get("api_key", "")
+        )
 
-        # Pixabay key: truyền vào > community key
-        self.pixabay_key = api_key_pixabay or "43267597-d867c4709292c300885e3474d"
+        # Pixabay key: truyền vào > env > registry > rỗng (KHÔNG hardcode key)
+        self.pixabay_key = (
+            api_key_pixabay
+            or os.getenv("PIXABAY_API_KEY", "").strip()
+            or self.ai.registry.get("providers", {})
+            .get("pixabay", {})
+            .get("api_key", "")
+        )
 
         # API Endpoints
         self._pexels_img = "https://api.pexels.com/v1/search"
@@ -216,8 +222,13 @@ class StockService:
         Tìm và tải nhạc từ Pixabay. Returns (success, message).
         """
         logger.info(f"Searching music for: '{keyword}'")
+        if not self.pixabay_key:
+            return False, (
+                "Pixabay API key chưa được cấu hình. Đặt biến môi trường "
+                "PIXABAY_API_KEY hoặc nhập trong Tab Quản Trị (provider 'pixabay')."
+            )
         url = "https://pixabay.com/api/audio/"
-        
+
         try:
             resp = requests.get(url, params={
                 "key": self.pixabay_key,
