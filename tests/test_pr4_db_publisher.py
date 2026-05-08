@@ -2,6 +2,7 @@
 
 Không chạm UI/PyQt6, không cần Internet.
 """
+
 from __future__ import annotations
 
 import json
@@ -34,8 +35,7 @@ def test_project_scene_crud(tmp_path):
     assert proj["mode"] == "auto"
     assert proj["status"] == "draft"
 
-    s1 = db.add_scene(pid, sequence_order=0, text_content="Hello",
-                      image_prompt="a cat", duration_ms=3000)
+    s1 = db.add_scene(pid, sequence_order=0, text_content="Hello", image_prompt="a cat", duration_ms=3000)
     s2 = db.add_scene(pid, sequence_order=1, text_content="World")
     assert s1 != s2
 
@@ -99,7 +99,7 @@ def test_legacy_projects_json_migration(tmp_path):
     names = {p["name"] for p in projects}
     assert names == {"Old Project A", "Old Project B"}
     proj_b = next(p for p in projects if p["name"] == "Old Project B")
-    assert proj_b["mode"] == "manual"   # đã sanitize
+    assert proj_b["mode"] == "manual"  # đã sanitize
 
     # Idempotent
     stats2 = db.migrate_legacy_projects_json("projects.json")
@@ -115,9 +115,12 @@ def test_publish_queue_crud(tmp_path):
     db = dbmod.DatabaseManager(db_path=str(tmp_path / "q.db"))
 
     tid = db.enqueue_publish(
-        platform="youtube", channel_id="ch1",
+        platform="youtube",
+        channel_id="ch1",
         video_path="/tmp/test.mp4",
-        title="hello", description="d", tags=["a", "b"],
+        title="hello",
+        description="d",
+        tags=["a", "b"],
     )
     assert tid > 0
 
@@ -132,7 +135,9 @@ def test_publish_queue_crud(tmp_path):
     assert db.list_publish_queue(status="running")[0]["id"] == tid
 
     assert db.update_publish_task(
-        tid, status="done", result_url="https://yt/x",
+        tid,
+        status="done",
+        result_url="https://yt/x",
         increment_attempts=True,
     )
     done = db.list_publish_queue(status="done")[0]
@@ -161,9 +166,13 @@ def test_scheduler_dispatches_to_uploader(tmp_path):
 
     # Lên lịch quá khứ → tick xử lý ngay
     tid = scheduler.add_to_queue(
-        platform="youtube", channel_id="ch1",
-        video_path=str(fake_video), title="t", description="d",
-        tags=["x"], schedule_time="2000-01-01T00:00:00",
+        platform="youtube",
+        channel_id="ch1",
+        video_path=str(fake_video),
+        title="t",
+        description="d",
+        tags=["x"],
+        schedule_time="2000-01-01T00:00:00",
     )
 
     scheduler._tick()  # gọi trực tiếp, không cần thread
@@ -186,12 +195,16 @@ def test_scheduler_retries_on_failure(tmp_path):
     fake_uploader.upload_video.return_value = (False, "boom")
 
     scheduler = PublishScheduler(
-        db_manager=db, uploaders={"youtube": fake_uploader}, poll_seconds=1,
+        db_manager=db,
+        uploaders={"youtube": fake_uploader},
+        poll_seconds=1,
     )
 
     scheduler.add_to_queue(
-        platform="youtube", channel_id="ch1",
-        video_path="/tmp/x.mp4", title="t",
+        platform="youtube",
+        channel_id="ch1",
+        video_path="/tmp/x.mp4",
+        title="t",
         schedule_time="2000-01-01T00:00:00",
     )
 
@@ -212,7 +225,9 @@ def test_scheduler_unknown_platform(tmp_path):
     db = dbmod.DatabaseManager(db_path=str(tmp_path / "unk.db"))
     scheduler = PublishScheduler(db_manager=db, uploaders={}, poll_seconds=1)
     scheduler.add_to_queue(
-        platform="tiktok", channel_id="ch", video_path="/tmp/x.mp4",
+        platform="tiktok",
+        channel_id="ch",
+        video_path="/tmp/x.mp4",
         schedule_time="2000-01-01T00:00:00",
     )
     scheduler._tick()

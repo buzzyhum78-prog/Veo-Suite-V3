@@ -17,6 +17,7 @@ Các thành phần:
 Module được viết để có thể import & test mà KHÔNG cần PyQt6 (lazy import),
 phục vụ smoke test trên CI headless.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -105,10 +106,12 @@ def probe_audio(path: str) -> dict[str, Any]:
         raise FileNotFoundError(path)
     cmd = [
         _which_ffprobe(),
-        "-v", "error",
+        "-v",
+        "error",
         "-show_entries",
         "stream=codec_type,sample_rate,channels,bit_rate:format=duration,bit_rate",
-        "-of", "default=noprint_wrappers=1:nokey=0",
+        "-of",
+        "default=noprint_wrappers=1:nokey=0",
         path,
     ]
     proc = _run(cmd, timeout=60)
@@ -139,9 +142,12 @@ def normalize_loudness(
     cmd = [
         _which_ffmpeg(),
         "-y",
-        "-i", src,
-        "-af", f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
-        "-ar", "44100",
+        "-i",
+        src,
+        "-af",
+        f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
+        "-ar",
+        "44100",
         dst,
     ]
     proc = _run(cmd, timeout=timeout)
@@ -195,11 +201,16 @@ def mix_narration_with_music(
     cmd = [
         _which_ffmpeg(),
         "-y",
-        "-i", narration,
-        "-stream_loop", "-1",
-        "-i", music,
-        "-filter_complex", a_filter,
-        "-map", "[aout]",
+        "-i",
+        narration,
+        "-stream_loop",
+        "-1",
+        "-i",
+        music,
+        "-filter_complex",
+        a_filter,
+        "-map",
+        "[aout]",
         "-shortest",
         dst,
     ]
@@ -217,12 +228,12 @@ def mix_narration_with_music(
 _HANDLERS: dict[str, Callable[[dict[str, Any]], AudioJobResult]] = {}
 
 
-def register_handler(kind: str) -> Callable[[Callable[[dict[str, Any]], AudioJobResult]],
-                                            Callable[[dict[str, Any]], AudioJobResult]]:
+def register_handler(
+    kind: str,
+) -> Callable[[Callable[[dict[str, Any]], AudioJobResult]], Callable[[dict[str, Any]], AudioJobResult]]:
     """Decorator để mở rộng kind tuỳ ý từ plugin."""
 
-    def deco(fn: Callable[[dict[str, Any]], AudioJobResult]
-             ) -> Callable[[dict[str, Any]], AudioJobResult]:
+    def deco(fn: Callable[[dict[str, Any]], AudioJobResult]) -> Callable[[dict[str, Any]], AudioJobResult]:
         _HANDLERS[kind] = fn
         return fn
 
@@ -265,8 +276,7 @@ def execute_job(job: AudioJob) -> AudioJobResult:
     """Chạy đồng bộ (dùng cho test). Worker async sẽ gọi hàm này từ thread."""
     handler = _HANDLERS.get(job.kind)
     if handler is None:
-        return AudioJobResult(job_id=job.job_id, ok=False,
-                              error=f"unknown kind: {job.kind}")
+        return AudioJobResult(job_id=job.job_id, ok=False, error=f"unknown kind: {job.kind}")
     try:
         result = handler(job.payload)
         result.job_id = job.job_id

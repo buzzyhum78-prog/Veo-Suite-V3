@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 
+
 class BasePublisherPlatform(ABC):
     """
     Interface gốc cho mọi nền tảng phát hành.
     Kiến trúc Plugin: Để thêm nền tảng mới, chỉ cần kế thừa class này.
     """
-    
+
     @property
     @abstractmethod
     def platform_name(self) -> str:

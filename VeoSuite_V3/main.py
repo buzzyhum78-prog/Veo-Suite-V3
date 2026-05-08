@@ -3,15 +3,16 @@ VEO SUITE V3.2 — Main Entry Point
 ===================================
 File: main.py
 """
+
 import logging
 import os
 import sys
 from pathlib import Path
 
 # Fix Unicode output trên Windows (cp1252 không hỗ trợ emoji)
-if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Thêm thư mục gốc vào Python path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -43,8 +44,8 @@ def setup_logging():
 
     file_handler = RotatingFileHandler(
         str(log_file),
-        maxBytes=10 * 1024 * 1024,   # 10 MB / file
-        backupCount=5,                # giữ 5 file cũ
+        maxBytes=10 * 1024 * 1024,  # 10 MB / file
+        backupCount=5,  # giữ 5 file cũ
         encoding="utf-8",
     )
     file_handler.setFormatter(fmt)
@@ -81,9 +82,7 @@ class ModernSplashScreen(QSplashScreen):
             lbl_logo = QLabel()
             lbl_logo.setPixmap(
                 QPixmap(str(logo_path)).scaled(
-                    120, 120,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
+                    120, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
                 )
             )
             lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -171,9 +170,7 @@ def initialize_database() -> DatabaseManager:
 
 def create_application() -> QApplication:
     """Tạo QApplication."""
-    QApplication.setHighDpiScaleFactorRoundingPolicy(
-        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
-    )
+    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
     app.setApplicationName("VEO SUITE")
     app.setStyle("Fusion")
@@ -209,11 +206,9 @@ def main() -> int:
     steps = [
         ("Checking system requirements...", 10, None),
         ("Loading core modules...", 30, None),
-        ("Connecting to Database...", 50,
-            lambda: state.update(db=initialize_database())),
+        ("Connecting to Database...", 50, lambda: state.update(db=initialize_database())),
         ("Verifying integrity...", 75, None),
-        ("Preparing User Interface...", 90,
-            lambda: state.update(main_window=MainWindow())),
+        ("Preparing User Interface...", 90, lambda: state.update(main_window=MainWindow())),
         ("Ready to launch!", 100, None),
     ]
 
@@ -242,8 +237,7 @@ def main() -> int:
             try:
                 action()
             except Exception as exc:
-                logger.critical("Splash step '%s' failed: %s",
-                                label, exc, exc_info=True)
+                logger.critical("Splash step '%s' failed: %s", label, exc, exc_info=True)
                 state["exit_code"] = 1
                 app.quit()
                 return

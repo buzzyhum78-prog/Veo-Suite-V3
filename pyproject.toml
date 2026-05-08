@@ -16,6 +16,38 @@ extend-exclude = [
     "scratch",
     "build",
     "dist",
+    # Legacy untouched modules — sẽ bật lint khi refactor (PR-5b/5c/5d trở đi).
+    # Hiện chứa ~4000 lint warnings (whitespace, multi-statement lines, bare except…)
+    # Không nên block CI cho PR-5 vì scope chưa chạm đến chúng.
+    "VeoSuite_V3/bac_si_veo.py",
+    "VeoSuite_V3/setup_project.py",
+    "VeoSuite_V3/tool_asset_factory.py",
+    "VeoSuite_V3/ui/admin_tab.py",
+    "VeoSuite_V3/ui/main_window.py",
+    "VeoSuite_V3/ui/styles.py",
+    "VeoSuite_V3/ui/widgets/content_tab.py",
+    "VeoSuite_V3/ui/widgets/editor_tab.py",
+    "VeoSuite_V3/ui/widgets/media_tab.py",
+    "VeoSuite_V3/ui/widgets/publisher_tab.py",
+    "VeoSuite_V3/ui/widgets/radar_tab.py",
+    "VeoSuite_V3/modules/assets_factory/constants.py",
+    "VeoSuite_V3/modules/assets_factory/prompt_templates.py",
+    "VeoSuite_V3/modules/assets_factory/subtitle_engine.py",
+    "VeoSuite_V3/modules/assets_factory/ui_components.py",
+    "VeoSuite_V3/modules/content/ui_components.py",
+    "VeoSuite_V3/modules/content/workers.py",
+    "VeoSuite_V3/modules/assets_factory/workers.py",
+    "VeoSuite_V3/modules/publisher/platforms/facebook_api.py",
+    "VeoSuite_V3/modules/publisher/platforms/instagram_api.py",
+    "VeoSuite_V3/modules/publisher/platforms/tiktok_api.py",
+    "VeoSuite_V3/modules/radar",
+    "VeoSuite_V3/modules/render",
+    "VeoSuite_V3/services/ai_factory.py",
+    "VeoSuite_V3/services/audio_service.py",
+    "VeoSuite_V3/services/render_service.py",
+    "VeoSuite_V3/services/thumbnail_composer.py",
+    "VeoSuite_V3/services/video_assembler.py",
+    "VeoSuite_V3/services/voice_constants.py",
 ]
 
 [tool.ruff.lint]

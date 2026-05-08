@@ -19,6 +19,7 @@ API có 2 lớp:
 Backward-compat: ``RenderService`` chưa bắt buộc dùng builder — file mới chỉ
 là tiện ích bổ sung, sẽ được áp dụng dần ở các tab refactor sau.
 """
+
 from __future__ import annotations
 
 import logging
@@ -212,6 +213,7 @@ class FFmpegCommandBuilder:
 # Presets — 4 use-case phổ biến
 # =====================================================================
 
+
 class FFmpegPresets:
     """Factory dựng sẵn cho các pipeline render hay dùng trong VEO Suite."""
 
@@ -223,8 +225,7 @@ class FFmpegPresets:
             w, h = resolution.lower().split("x")
             return int(w), int(h)
         except (ValueError, AttributeError):
-            logger.warning("Bad resolution '%s', falling back to %dx%d",
-                           resolution, *default)
+            logger.warning("Bad resolution '%s', falling back to %dx%d", resolution, *default)
             return default
 
     @classmethod
@@ -246,8 +247,7 @@ class FFmpegPresets:
         width, height = cls.parse_resolution(resolution)
 
         kb = ken_burns_filter or (
-            "zoompan=z='min(zoom+0.0015,1.5)':d=700"
-            ":x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+            "zoompan=z='min(zoom+0.0015,1.5)':d=700:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
         )
 
         builder = FFmpegCommandBuilder(ffmpeg=ffmpeg)
@@ -261,21 +261,15 @@ class FFmpegPresets:
             f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,"
             f"{kb},setsar=1"
         )
-        per_image = [
-            f"[{i}:v]{per_image_chain}[v{i}]" for i in range(len(images))
-        ]
+        per_image = [f"[{i}:v]{per_image_chain}[v{i}]" for i in range(len(images))]
         concat_inputs = "".join(f"[v{i}]" for i in range(len(images)))
-        concat = (
-            f"{concat_inputs}concat=n={len(images)}:v=1:a=0,"
-            f"format=yuv420p[v]"
-        )
+        concat = f"{concat_inputs}concat=n={len(images)}:v=1:a=0,format=yuv420p[v]"
         builder.filter_complex(";".join(per_image) + ";" + concat)
 
         # afade in/out để tránh pop
         fade_out_start = max(0.0, audio_duration - cls.DEFAULT_FADE)
         builder.audio_filter(
-            f"afade=t=in:d={cls.DEFAULT_FADE},"
-            f"afade=t=out:st={fade_out_start}:d={cls.DEFAULT_FADE}"
+            f"afade=t=in:d={cls.DEFAULT_FADE},afade=t=out:st={fade_out_start}:d={cls.DEFAULT_FADE}"
         )
         builder.map("[v]")
         builder.map(f"{len(images)}:a")
@@ -306,9 +300,7 @@ class FFmpegPresets:
             f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
             f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1"
         )
-        builder.audio_filter(
-            f"afade=t=in:d={cls.DEFAULT_FADE},afade=t=out:d={cls.DEFAULT_FADE}"
-        )
+        builder.audio_filter(f"afade=t=in:d={cls.DEFAULT_FADE},afade=t=out:d={cls.DEFAULT_FADE}")
         builder.vcodec("libx264", pix_fmt="yuv420p")
         builder.acodec("aac", bitrate="192k")
         builder.shortest(True)
@@ -335,8 +327,7 @@ class FFmpegPresets:
             )
         else:
             a_filter = (
-                f"[1:a]volume={volume}[bg];"
-                f"[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+                f"[1:a]volume={volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[aout]"
             )
         builder = FFmpegCommandBuilder(ffmpeg=ffmpeg)
         builder.add_input(video_path)

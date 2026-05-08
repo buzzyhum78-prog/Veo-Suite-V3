@@ -3,6 +3,7 @@
 PR-5: thay mock data bằng dữ liệu thật từ ``DatabaseManager.list_accounts()``.
 Khi không truyền ``db`` (vd test/mock), tab vẫn render bằng dataset rỗng.
 """
+
 from __future__ import annotations
 
 import logging
@@ -35,8 +36,8 @@ logger = logging.getLogger("VeoSuite.UI.OpsTab")
 # Bản đồ status → emoji + màu
 _STATUS_PRESET = {
     "warmup": ("🟡 Warmup", "#f1c40f"),
-    "money":  ("🟢 Money", "#2ecc71"),
-    "burn":   ("🔴 Burn", "#e74c3c"),
+    "money": ("🟢 Money", "#2ecc71"),
+    "burn": ("🔴 Burn", "#e74c3c"),
 }
 
 
@@ -93,9 +94,7 @@ class OpsTab(QWidget):
             lbl = QLabel(label)
             lbl.setStyleSheet("color: #aaa; font-size: 12px;")
             val = QLabel(value)
-            val.setStyleSheet(
-                f"color: {color}; font-size: 20px; font-weight: bold;"
-            )
+            val.setStyleSheet(f"color: {color}; font-size: 20px; font-weight: bold;")
             vbox.addWidget(lbl)
             vbox.addWidget(val)
             vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -104,9 +103,7 @@ class OpsTab(QWidget):
         total_layout, self._card_total = create_stat_card("Tổng Số Kênh", "0", "#fff")
         active_layout, self._card_active = create_stat_card("Kênh Money", "0", "#2ecc71")
         alert_layout, self._card_alert = create_stat_card("Cảnh Báo Rủi Ro", "0", "#e74c3c")
-        revenue_layout, self._card_revenue = create_stat_card(
-            "Doanh Thu Hôm Nay", "—", "#f1c40f"
-        )
+        revenue_layout, self._card_revenue = create_stat_card("Doanh Thu Hôm Nay", "—", "#f1c40f")
         for lyt in (total_layout, active_layout, alert_layout, revenue_layout):
             s_layout.addLayout(lyt)
 
@@ -138,13 +135,16 @@ class OpsTab(QWidget):
         # Bảng Kênh — đổ data thật trong refresh()
         self.table_channels = QTableWidget(0, 7)
         headers = [
-            "Tên Kênh", "Ghi chú", "Platform", "Trạng thái",
-            "Proxy", "Video chờ", "Hành động",
+            "Tên Kênh",
+            "Ghi chú",
+            "Platform",
+            "Trạng thái",
+            "Proxy",
+            "Video chờ",
+            "Hành động",
         ]
         self.table_channels.setHorizontalHeaderLabels(headers)
-        self.table_channels.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
+        self.table_channels.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table_channels.verticalHeader().setVisible(False)
         self.table_channels.setAlternatingRowColors(True)
         self.table_channels.setStyleSheet("background: #1e1e1e; border: none;")
@@ -210,9 +210,9 @@ class OpsTab(QWidget):
         """Stub Health-Check — tới PR-6 sẽ kết nối YouTube API thật."""
         n = self.table_channels.rowCount() if hasattr(self, "table_channels") else 0
         QMessageBox.information(
-            self, "Health Check",
-            f"Đang quét {n} kênh trong DB...\n"
-            "(Stub — endpoint YouTube Data API sẽ được gắn ở PR-6.)",
+            self,
+            "Health Check",
+            f"Đang quét {n} kênh trong DB...\n(Stub — endpoint YouTube Data API sẽ được gắn ở PR-6.)",
         )
 
     def _build_security_tab(self):
@@ -230,10 +230,12 @@ class OpsTab(QWidget):
         txt_proxy_list.setMaximumHeight(100)
 
         cb_rotate = QComboBox()
-        cb_rotate.addItems([
-            "Xoay vòng theo Kênh (Mỗi kênh 1 IP cố định)",
-            "Xoay vòng theo Phiên (Mỗi lần mở đổi IP)",
-        ])
+        cb_rotate.addItems(
+            [
+                "Xoay vòng theo Kênh (Mỗi kênh 1 IP cố định)",
+                "Xoay vòng theo Phiên (Mỗi lần mở đổi IP)",
+            ]
+        )
 
         btn_check_proxy = QPushButton("Kiểm tra Proxy sống/chết")
 

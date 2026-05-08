@@ -48,7 +48,7 @@ class DatabaseManager:
             self.connection = sqlite3.connect(
                 str(self.db_path),
                 check_same_thread=False,
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             )
             self.connection.execute("PRAGMA foreign_keys = ON")
             self.connection.row_factory = sqlite3.Row
@@ -182,7 +182,7 @@ class DatabaseManager:
         for key, value, desc in defaults:
             cursor.execute(
                 "INSERT OR IGNORE INTO settings (key, value, description) VALUES (?, ?, ?)",
-                (key, value, desc)
+                (key, value, desc),
             )
 
     # =========================================================================
@@ -197,10 +197,9 @@ class DatabaseManager:
                 cursor = conn.cursor()
 
             # Kiểm tra bảng tồn tại
-            required = ['projects', 'scenes', 'settings', 'accounts']
+            required = ["projects", "scenes", "settings", "accounts"]
             cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?, ?, ?)",
-                required
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?, ?, ?)", required
             )
             existing = [row[0] for row in cursor.fetchall()]
             if len(existing) != len(required):
@@ -236,19 +235,18 @@ class DatabaseManager:
                 conn = self._get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM projects")
-                stats['total_projects'] = cursor.fetchone()[0]
+                stats["total_projects"] = cursor.fetchone()[0]
                 cursor.execute("SELECT COUNT(*) FROM scenes")
-                stats['total_scenes'] = cursor.fetchone()[0]
+                stats["total_scenes"] = cursor.fetchone()[0]
                 cursor.execute("SELECT COUNT(*) FROM accounts")
-                stats['total_accounts'] = cursor.fetchone()[0]
+                stats["total_accounts"] = cursor.fetchone()[0]
             if self.db_path.exists():
-                stats['db_size_mb'] = round(self.db_path.stat().st_size / (1024 * 1024), 2)
+                stats["db_size_mb"] = round(self.db_path.stat().st_size / (1024 * 1024), 2)
             else:
-                stats['db_size_mb'] = 0
+                stats["db_size_mb"] = 0
         except sqlite3.Error as e:
             logger.error(f"Stats error: {e}")
-            stats = {'total_projects': 0, 'total_scenes': 0,
-                     'total_accounts': 0, 'db_size_mb': 0}
+            stats = {"total_projects": 0, "total_scenes": 0, "total_accounts": 0, "db_size_mb": 0}
         return stats
 
     # =========================================================================
@@ -305,9 +303,7 @@ class DatabaseManager:
 
     def get_project(self, project_id: int) -> dict[str, Any] | None:
         """Lấy 1 project theo id (hoặc None)."""
-        row = self.fetch_one(
-            "SELECT * FROM projects WHERE id = ?", (project_id,)
-        )
+        row = self.fetch_one("SELECT * FROM projects WHERE id = ?", (project_id,))
         return dict(row) if row else None
 
     def list_projects(self, status: str | None = None) -> list[dict[str, Any]]:
@@ -360,8 +356,14 @@ class DatabaseManager:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                project_id, sequence_order, text_content, image_prompt,
-                image_path, audio_path, duration_ms, image_source,
+                project_id,
+                sequence_order,
+                text_content,
+                image_prompt,
+                image_path,
+                audio_path,
+                duration_ms,
+                image_source,
             ),
         )
         return int(cur.lastrowid)
@@ -377,8 +379,13 @@ class DatabaseManager:
     def update_scene(self, scene_id: int, **fields: Any) -> bool:
         """Cập nhật các trường của scene."""
         ALLOWED = {
-            "sequence_order", "text_content", "audio_path",
-            "duration_ms", "image_prompt", "image_path", "image_source",
+            "sequence_order",
+            "text_content",
+            "audio_path",
+            "duration_ms",
+            "image_prompt",
+            "image_path",
+            "image_source",
         }
         clean = {k: v for k, v in fields.items() if k in ALLOWED}
         if not clean:
@@ -410,6 +417,7 @@ class DatabaseManager:
     ) -> int:
         """Đẩy 1 video vào hàng đợi publish. schedule_time là ISO string."""
         from datetime import datetime
+
         if schedule_time is None:
             schedule_time = datetime.now().isoformat(timespec="seconds")
         tags_csv = ",".join(tags or [])
@@ -420,26 +428,19 @@ class DatabaseManager:
                  tags, privacy_status, schedule_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (platform, channel_id, video_path, title, description,
-             tags_csv, privacy_status, schedule_time),
+            (platform, channel_id, video_path, title, description, tags_csv, privacy_status, schedule_time),
         )
         return int(cur.lastrowid)
 
-    def list_publish_queue(
-        self, status: str | None = None
-    ) -> list[dict[str, Any]]:
+    def list_publish_queue(self, status: str | None = None) -> list[dict[str, Any]]:
         """Liệt kê các task trong queue."""
         if status:
             rows = self.fetch_all(
-                "SELECT * FROM publish_queue WHERE status = ? "
-                "ORDER BY schedule_time ASC, id ASC",
+                "SELECT * FROM publish_queue WHERE status = ? ORDER BY schedule_time ASC, id ASC",
                 (status,),
             )
         else:
-            rows = self.fetch_all(
-                "SELECT * FROM publish_queue "
-                "ORDER BY schedule_time ASC, id ASC"
-            )
+            rows = self.fetch_all("SELECT * FROM publish_queue ORDER BY schedule_time ASC, id ASC")
         return [dict(r) for r in rows]
 
     def update_publish_task(
@@ -478,9 +479,7 @@ class DatabaseManager:
     # accounts (Ops Center)
     # ---------------------------------------------------------------------
 
-    def list_accounts(
-        self, platform: str | None = None, status: str | None = None
-    ) -> list[dict[str, Any]]:
+    def list_accounts(self, platform: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
         """Liệt kê accounts (kênh / tài khoản) cho Ops tab.
 
         Có thể lọc theo ``platform`` (vd 'youtube', 'tiktok') và/hoặc
@@ -523,17 +522,20 @@ class DatabaseManager:
     def update_account(self, account_id: int, **fields: Any) -> bool:
         """Cập nhật các trường account. Bỏ qua field lạ."""
         ALLOWED = {
-            "platform", "username", "cookies", "proxy",
-            "status", "last_used", "notes",
+            "platform",
+            "username",
+            "cookies",
+            "proxy",
+            "status",
+            "last_used",
+            "notes",
         }
         clean = {k: v for k, v in fields.items() if k in ALLOWED}
         if not clean:
             return False
         sets = ", ".join(f"{k} = ?" for k in clean)
         params = tuple(clean.values()) + (account_id,)
-        cur = self.execute(
-            f"UPDATE accounts SET {sets} WHERE id = ?", params
-        )
+        cur = self.execute(f"UPDATE accounts SET {sets} WHERE id = ?", params)
         return cur.rowcount > 0
 
     def delete_account(self, account_id: int) -> bool:
@@ -545,9 +547,7 @@ class DatabaseManager:
     # Migration: projects.json → SQLite
     # ---------------------------------------------------------------------
 
-    def migrate_legacy_projects_json(
-        self, filename: str = "projects.json"
-    ) -> dict[str, int]:
+    def migrate_legacy_projects_json(self, filename: str = "projects.json") -> dict[str, int]:
         """One-shot migration: nạp projects từ legacy JSON vào bảng SQLite.
 
         Idempotent: chỉ thêm project có name chưa tồn tại trong DB. Trả về
@@ -560,9 +560,7 @@ class DatabaseManager:
 
         for proj in legacy:
             name = proj.get("name") or proj.get("title") or "(no-name)"
-            existing = self.fetch_one(
-                "SELECT id FROM projects WHERE name = ?", (name,)
-            )
+            existing = self.fetch_one("SELECT id FROM projects WHERE name = ?", (name,))
             if existing:
                 stats["skipped"] += 1
                 continue
@@ -589,7 +587,9 @@ class DatabaseManager:
 
         logger.info(
             "Legacy migration done: migrated=%d skipped=%d scenes=%d",
-            stats["migrated"], stats["skipped"], stats["scenes_added"],
+            stats["migrated"],
+            stats["skipped"],
+            stats["scenes_added"],
         )
         return stats
 
@@ -602,9 +602,7 @@ class DatabaseManager:
     @property
     def db_folder(self) -> str:
         """Trả về thư mục VEO_DB (backward compat)."""
-        folder = os.path.join(
-            Path(__file__).parent.parent, "VEO_DB"
-        )
+        folder = os.path.join(Path(__file__).parent.parent, "VEO_DB")
         os.makedirs(folder, exist_ok=True)
         return folder
 

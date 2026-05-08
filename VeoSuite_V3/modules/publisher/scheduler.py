@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("VeoSuite.Publisher.Scheduler")
 
@@ -31,7 +32,7 @@ class PublishScheduler:
     def __init__(
         self,
         db_manager: Any,
-        uploaders: Optional[Dict[str, Callable[..., Any]]] = None,
+        uploaders: dict[str, Callable[..., Any]] | None = None,
         poll_seconds: int = DEFAULT_POLL_SECONDS,
     ):
         """
@@ -44,10 +45,10 @@ class PublishScheduler:
             poll_seconds: chu kỳ quét queue.
         """
         self.db = db_manager
-        self.uploaders: Dict[str, Any] = uploaders or {}
+        self.uploaders: dict[str, Any] = uploaders or {}
         self.poll_seconds = max(1, int(poll_seconds))
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
     # =====================================================================
@@ -66,9 +67,9 @@ class PublishScheduler:
         video_path: str,
         title: str = "",
         description: str = "",
-        tags: Optional[list] = None,
+        tags: list | None = None,
         privacy_status: str = "private",
-        schedule_time: Optional[str] = None,
+        schedule_time: str | None = None,
     ) -> int:
         """Thêm 1 task vào queue (bền vững trong SQLite)."""
         task_id = self.db.enqueue_publish(
@@ -83,11 +84,14 @@ class PublishScheduler:
         )
         logger.info(
             "Enqueued task #%d (%s -> %s) at %s",
-            task_id, platform, channel_id, schedule_time or "now",
+            task_id,
+            platform,
+            channel_id,
+            schedule_time or "now",
         )
         return task_id
 
-    def list_queue(self, status: Optional[str] = None) -> list:
+    def list_queue(self, status: str | None = None) -> list:
         """Liệt kê queue (forward sang DB)."""
         return self.db.list_publish_queue(status=status)
 
@@ -97,9 +101,7 @@ class PublishScheduler:
             return
         self._running = True
         self._stop_event.clear()
-        self._thread = threading.Thread(
-            target=self._loop, name="PublishScheduler", daemon=True
-        )
+        self._thread = threading.Thread(target=self._loop, name="PublishScheduler", daemon=True)
         self._thread.start()
         logger.info("Scheduler started.")
 
@@ -142,14 +144,15 @@ class PublishScheduler:
                 continue
             self._run_task(task)
 
-    def _run_task(self, task: Dict[str, Any]) -> None:
+    def _run_task(self, task: dict[str, Any]) -> None:
         """Chạy 1 task: gọi uploader, cập nhật DB."""
         task_id = int(task["id"])
         platform = task["platform"]
         uploader = self.uploaders.get(platform)
         if uploader is None:
             self.db.update_publish_task(
-                task_id, status="failed",
+                task_id,
+                status="failed",
                 last_error=f"No uploader for platform '{platform}'",
             )
             logger.error("No uploader for platform=%s (task #%d)", platform, task_id)
@@ -158,7 +161,8 @@ class PublishScheduler:
         attempts = int(task.get("attempts") or 0)
         if attempts >= MAX_ATTEMPTS:
             self.db.update_publish_task(
-                task_id, status="failed",
+                task_id,
+                status="failed",
                 last_error=f"Exceeded MAX_ATTEMPTS ({MAX_ATTEMPTS})",
             )
             return
@@ -185,17 +189,25 @@ class PublishScheduler:
 
         if ok:
             self.db.update_publish_task(
-                task_id, status="done", result_url=msg,
+                task_id,
+                status="done",
+                result_url=msg,
                 increment_attempts=True,
             )
             logger.info("Task #%d done -> %s", task_id, msg)
         else:
             new_status = "failed" if attempts + 1 >= MAX_ATTEMPTS else "pending"
             self.db.update_publish_task(
-                task_id, status=new_status,
-                last_error=msg, increment_attempts=True,
+                task_id,
+                status=new_status,
+                last_error=msg,
+                increment_attempts=True,
             )
             logger.warning(
                 "Task #%d %s (attempt %d/%d): %s",
-                task_id, new_status, attempts + 1, MAX_ATTEMPTS, msg,
+                task_id,
+                new_status,
+                attempts + 1,
+                MAX_ATTEMPTS,
+                msg,
             )

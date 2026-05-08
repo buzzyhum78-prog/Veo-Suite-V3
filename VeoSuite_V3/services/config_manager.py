@@ -9,13 +9,14 @@ Quản lý tập trung mọi cấu hình hệ thống:
 """
 
 import json
-import os
 import logging
+import os
 from pathlib import Path
 
 # Thử load .env nếu có python-dotenv
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -78,18 +79,19 @@ DEFAULT_SETTINGS = {
 class ConfigManager:
     """
     Singleton quản lý cấu hình hệ thống.
-    
+
     Usage:
         from services.config_manager import ConfigManager
         cfg = ConfigManager()
         theme = cfg.get("app_theme", "Dark")
         cfg.set("app_theme", "Light")
     """
+
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(ConfigManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
@@ -102,8 +104,17 @@ class ConfigManager:
 
     def _ensure_directories(self):
         """Tạo các thư mục cần thiết nếu chưa có."""
-        for d in [CONFIG_DIR, VEO_DB_DIR, OUTPUT_DIR, DATABASE_DIR,
-                  ASSETS_DIR, FONTS_DIR, OVERLAYS_DIR, TEMP_DIR, LOGS_DIR]:
+        for d in [
+            CONFIG_DIR,
+            VEO_DB_DIR,
+            OUTPUT_DIR,
+            DATABASE_DIR,
+            ASSETS_DIR,
+            FONTS_DIR,
+            OVERLAYS_DIR,
+            TEMP_DIR,
+            LOGS_DIR,
+        ]:
             d.mkdir(parents=True, exist_ok=True)
 
     def _load_config(self):
@@ -114,7 +125,7 @@ class ConfigManager:
                     saved = json.load(f)
                 # Merge: defaults làm nền, saved đè lên
                 self.config = {**DEFAULT_SETTINGS, **saved}
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"Settings file lỗi, dùng defaults: {e}")
                 self.config = dict(DEFAULT_SETTINGS)
                 self._save_config()
@@ -128,7 +139,7 @@ class ConfigManager:
             CONFIG_DIR.mkdir(parents=True, exist_ok=True)
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, indent=4, ensure_ascii=False)
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Không thể lưu settings: {e}")
 
     def get(self, key: str, default=""):

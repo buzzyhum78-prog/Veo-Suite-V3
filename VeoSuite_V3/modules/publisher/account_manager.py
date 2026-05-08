@@ -1,6 +1,6 @@
+import json
 import logging
 import os
-import json
 import uuid
 
 logger = logging.getLogger("VeoSuite.Publisher.AccountManager")
@@ -8,6 +8,7 @@ logger = logging.getLogger("VeoSuite.Publisher.AccountManager")
 
 class PublisherAccountManager:
     """Quản lý thông tin đăng nhập/API Keys của các tài khoản xuất bản đa nền tảng"""
+
     def __init__(self):
         self.db_path = "VEO_DB/publisher_accounts.json"
         self._ensure_db_exists()
@@ -40,7 +41,7 @@ class PublisherAccountManager:
             "platform": platform,
             "account_name": account_name,
             "credentials": credentials,
-            "status": "Vừa thêm mới"
+            "status": "Vừa thêm mới",
         }
         accounts.append(new_acc)
         self.save_accounts(accounts)

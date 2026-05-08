@@ -3,6 +3,7 @@
 Không chạm subprocess thật, không cần ffmpeg/google-api/Internet.
 Smoke tests chạy được trên CI headless (``QT_QPA_PLATFORM=offscreen``).
 """
+
 from __future__ import annotations
 
 import os
@@ -101,8 +102,11 @@ def test_ffmpeg_builder_concat_clips_command():
     from services.ffmpeg_builder import FFmpegPresets
 
     cmd = FFmpegPresets.concat_clips(
-        ffmpeg="ffmpeg", list_file="list.txt", audio_path="a.mp3",
-        output_path="out.mp4", resolution="1920x1080",
+        ffmpeg="ffmpeg",
+        list_file="list.txt",
+        audio_path="a.mp3",
+        output_path="out.mp4",
+        resolution="1920x1080",
     )
     assert "-f" in cmd and "concat" in cmd
     assert cmd[-1] == "out.mp4"
@@ -112,13 +116,21 @@ def test_ffmpeg_builder_mix_music():
     from services.ffmpeg_builder import FFmpegPresets
 
     cmd = FFmpegPresets.mix_background_music(
-        ffmpeg="ffmpeg", video_path="v.mp4", music_path="m.mp3",
-        output_path="o.mp4", volume=0.2, ducking=True,
+        ffmpeg="ffmpeg",
+        video_path="v.mp4",
+        music_path="m.mp3",
+        output_path="o.mp4",
+        volume=0.2,
+        ducking=True,
     )
     assert "sidechaincompress" in " ".join(cmd)
     cmd2 = FFmpegPresets.mix_background_music(
-        ffmpeg="ffmpeg", video_path="v.mp4", music_path="m.mp3",
-        output_path="o.mp4", volume=0.2, ducking=False,
+        ffmpeg="ffmpeg",
+        video_path="v.mp4",
+        music_path="m.mp3",
+        output_path="o.mp4",
+        volume=0.2,
+        ducking=False,
     )
     assert "sidechaincompress" not in " ".join(cmd2)
 
@@ -127,7 +139,9 @@ def test_ffmpeg_builder_burn_subtitle_escapes_path():
     from services.ffmpeg_builder import FFmpegPresets
 
     cmd = FFmpegPresets.burn_subtitle(
-        ffmpeg="ffmpeg", video_path="v.mp4", srt_path="C:/a/b.srt",
+        ffmpeg="ffmpeg",
+        video_path="v.mp4",
+        srt_path="C:/a/b.srt",
         output_path="out.mp4",
     )
     joined = " ".join(cmd)
@@ -168,8 +182,7 @@ def test_audio_register_custom_handler():
 
     @audio_async.register_handler("custom-test")
     def _h(p):
-        return audio_async.AudioJobResult(job_id="", ok=True,
-                                          info={"x": p.get("x", 0) * 2})
+        return audio_async.AudioJobResult(job_id="", ok=True, info={"x": p.get("x", 0) * 2})
 
     res = audio_async.execute_job(audio_async.AudioJob(kind="custom-test", payload={"x": 21}))
     assert res.ok and res.info["x"] == 42
@@ -202,12 +215,23 @@ def test_ops_tab_refreshes_from_db(qapp):
     from ui.widgets.ops_tab import OpsTab
 
     accounts = [
-        {"id": 1, "platform": "youtube", "username": "ch-money",
-         "status": "money", "proxy": "1.1.1.1", "notes": "n1"},
-        {"id": 2, "platform": "tiktok", "username": "ch-burn",
-         "status": "burn", "proxy": None, "notes": None},
-        {"id": 3, "platform": "youtube", "username": "ch-warm",
-         "status": "warmup", "proxy": "", "notes": ""},
+        {
+            "id": 1,
+            "platform": "youtube",
+            "username": "ch-money",
+            "status": "money",
+            "proxy": "1.1.1.1",
+            "notes": "n1",
+        },
+        {
+            "id": 2,
+            "platform": "tiktok",
+            "username": "ch-burn",
+            "status": "burn",
+            "proxy": None,
+            "notes": None,
+        },
+        {"id": 3, "platform": "youtube", "username": "ch-warm", "status": "warmup", "proxy": "", "notes": ""},
     ]
     tab = OpsTab(db=_StubDB(accounts))
     # Bảng phải có 3 dòng

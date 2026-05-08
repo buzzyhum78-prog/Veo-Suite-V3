@@ -6,6 +6,7 @@ Mục tiêu:
 
 Các test này KHÔNG gọi UI (PyQt6) — chỉ kiểm tra logic backend.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -99,9 +100,9 @@ def test_db_manager_thread_safety(tmp_path):
 # ---------------------------------------------------------------------------
 def test_no_hardcoded_pixabay_key():
     """Đảm bảo PR-1 vẫn còn — không có Pixabay key hardcoded."""
-    workers = (
-        ROOT / "modules" / "assets_factory" / "workers.py"
-    ).read_text(encoding="utf-8", errors="replace")
+    workers = (ROOT / "modules" / "assets_factory" / "workers.py").read_text(
+        encoding="utf-8", errors="replace"
+    )
     # Pixabay free keys có dạng số-chữ dài ~30 ký tự — kiểm tra loose
     assert "PIXABAY_API_KEY" not in workers or 'os.getenv("PIXABAY_API_KEY"' in workers, (
         "Pixabay key bị hardcoded lại — vui lòng dùng env/registry."
@@ -112,11 +113,9 @@ def test_no_bare_except_in_db_manager():
     """Đảm bảo PR-2 vẫn còn — db_manager.py không có bare except."""
     src = (ROOT / "database" / "db_manager.py").read_text(encoding="utf-8")
     # tách comment
-    code_only = "\n".join(
-        line.split("#", 1)[0]
-        for line in src.splitlines()
-    )
+    code_only = "\n".join(line.split("#", 1)[0] for line in src.splitlines())
     # bare 'except:' đã bị thay bằng 'except Exception:'
     import re
+
     bare = re.search(r"(?<![A-Za-z0-9_])except\s*:", code_only)
     assert bare is None, "Phát hiện bare 'except:' — phải dùng 'except Exception:'"

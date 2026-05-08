@@ -34,18 +34,14 @@ class StockService:
         self.pexels_key = (
             api_key_pexels
             or os.getenv("PEXELS_API_KEY", "").strip()
-            or self.ai.registry.get("providers", {})
-            .get("pexels", {})
-            .get("api_key", "")
+            or self.ai.registry.get("providers", {}).get("pexels", {}).get("api_key", "")
         )
 
         # Pixabay key: truyền vào > env > registry > rỗng (KHÔNG hardcode key)
         self.pixabay_key = (
             api_key_pixabay
             or os.getenv("PIXABAY_API_KEY", "").strip()
-            or self.ai.registry.get("providers", {})
-            .get("pixabay", {})
-            .get("api_key", "")
+            or self.ai.registry.get("providers", {}).get("pixabay", {}).get("api_key", "")
         )
 
         # API Endpoints
@@ -58,8 +54,9 @@ class StockService:
     # PUBLIC: Download visual
     # =========================================================================
 
-    def download_visual(self, keyword: str, save_folder: str,
-                        orientation: str = "landscape", media_type: str = "video"):
+    def download_visual(
+        self, keyword: str, save_folder: str, orientation: str = "landscape", media_type: str = "video"
+    ):
         """
         Tìm và tải visual. Returns (success: bool, path_or_message: str).
 
@@ -145,11 +142,11 @@ class StockService:
                             h = f.get("height", 0)
                             quality = w * h
                             ok_orient = (
-                                (orient == "portrait" and h > w) or
-                                (orient == "landscape" and w > h) or
-                                orient not in ("portrait", "landscape")
+                                (orient == "portrait" and h > w)
+                                or (orient == "landscape" and w > h)
+                                or orient not in ("portrait", "landscape")
                             )
-                            if ok_orient and quality > best_quality and quality <= 1920*1080:
+                            if ok_orient and quality > best_quality and quality <= 1920 * 1080:
                                 best_quality = quality
                                 best_url = f["link"]
                     if best_url:
@@ -201,8 +198,12 @@ class StockService:
             orient_param = "vertical" if orient == "portrait" else "horizontal"
             resp = requests.get(
                 self._pixabay_img,
-                params={"key": self.pixabay_key, "q": query, "image_type": "photo",
-                        "orientation": orient_param},
+                params={
+                    "key": self.pixabay_key,
+                    "q": query,
+                    "image_type": "photo",
+                    "orientation": orient_param,
+                },
                 timeout=API_TIMEOUT,
             )
             if resp.status_code == 200:
@@ -230,12 +231,10 @@ class StockService:
         url = "https://pixabay.com/api/audio/"
 
         try:
-            resp = requests.get(url, params={
-                "key": self.pixabay_key,
-                "q": keyword,
-                "per_page": 5
-            }, timeout=API_TIMEOUT)
-            
+            resp = requests.get(
+                url, params={"key": self.pixabay_key, "q": keyword, "per_page": 5}, timeout=API_TIMEOUT
+            )
+
             if resp.status_code == 200:
                 hits = resp.json().get("hits", [])
                 if hits:
@@ -244,7 +243,7 @@ class StockService:
                     audio_url = track.get("unlocked_url") or track.get("url")
                     if audio_url:
                         return self._download_file_to_path(audio_url, save_path)
-            
+
             return False, "No music found"
         except Exception as e:
             logger.error(f"Music search failed: {e}")
@@ -259,7 +258,7 @@ class StockService:
         try:
             with requests.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT) as r:
                 r.raise_for_status()
-                with open(full_path, 'wb') as f:
+                with open(full_path, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
             return True, full_path
@@ -284,7 +283,7 @@ class StockService:
 
             with requests.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT) as r:
                 r.raise_for_status()
-                with open(path, 'wb') as f:
+                with open(path, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
 

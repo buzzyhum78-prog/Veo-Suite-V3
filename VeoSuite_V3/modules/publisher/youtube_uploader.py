@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("VeoSuite.Publisher.YouTube")
 
@@ -31,6 +31,7 @@ try:
     from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
     from googleapiclient.discovery import build  # type: ignore
     from googleapiclient.http import MediaFileUpload  # type: ignore
+
     _GOOGLE_AVAILABLE = True
 except ImportError:
     _GOOGLE_AVAILABLE = False
@@ -51,14 +52,14 @@ DEFAULT_TOKEN_DIR = Path.home() / ".veo_suite" / "youtube"
 class YouTubeUploader:
     """Upload video lên YouTube — production-ready khi google-api có sẵn."""
 
-    def __init__(self, token_dir: Optional[str] = None, mock: Optional[bool] = None):
+    def __init__(self, token_dir: str | None = None, mock: bool | None = None):
         self.token_dir = Path(token_dir) if token_dir else DEFAULT_TOKEN_DIR
         self.token_dir.mkdir(parents=True, exist_ok=True)
         # Mock mode: tuỳ chọn ép buộc, mặc định = bật khi google-api không có
         self.mock = (not _GOOGLE_AVAILABLE) if mock is None else bool(mock)
-        self._services: Dict[str, Any] = {}
+        self._services: dict[str, Any] = {}
         self.is_authenticated = False
-        self.channels: Dict[str, bool] = {}
+        self.channels: dict[str, bool] = {}
 
     # =====================================================================
     # OAuth
@@ -68,9 +69,7 @@ class YouTubeUploader:
         safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in channel_id)
         return self.token_dir / f"token_{safe}.json"
 
-    def authenticate_channel(
-        self, channel_id: str, client_secret_path: str
-    ) -> bool:
+    def authenticate_channel(self, channel_id: str, client_secret_path: str) -> bool:
         """OAuth2 flow cho 1 channel. Cache token để lần sau auto-refresh."""
         if self.mock:
             logger.info("[MOCK] authenticate_channel(%s)", channel_id)
@@ -83,13 +82,11 @@ class YouTubeUploader:
             return False
 
         token_path = self._token_path(channel_id)
-        creds: Optional[Credentials] = None
+        creds: Credentials | None = None
 
         if token_path.exists():
             try:
-                creds = Credentials.from_authorized_user_file(
-                    str(token_path), SCOPES
-                )
+                creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
             except Exception as e:
                 logger.warning("Cannot load token (%s): %s", token_path, e)
                 creds = None
@@ -103,9 +100,7 @@ class YouTubeUploader:
 
         if not creds or not creds.valid:
             try:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    client_secret_path, SCOPES
-                )
+                flow = InstalledAppFlow.from_client_secrets_file(client_secret_path, SCOPES)
                 # run_local_server mở browser; nếu chạy headless thì dùng
                 # run_console (deprecated nhưng còn dùng được).
                 creds = flow.run_local_server(port=0)
@@ -134,10 +129,10 @@ class YouTubeUploader:
         video_path: str,
         title: str,
         description: str = "",
-        tags: Optional[list] = None,
+        tags: list | None = None,
         privacy_status: str = "private",
         category_id: str = "22",  # People & Blogs
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Upload 1 file video. Trả về (success, url_or_error)."""
         if not os.path.exists(video_path):
             return False, f"Video not found: {video_path}"
@@ -148,7 +143,10 @@ class YouTubeUploader:
         if self.mock:
             logger.info(
                 "[MOCK] upload %s -> %s (%s, %s)",
-                video_path, channel_id, title, privacy_status,
+                video_path,
+                channel_id,
+                title,
+                privacy_status,
             )
             time.sleep(0.5)  # giả lập latency
             return True, "https://youtube.com/watch?v=mock_id"
@@ -159,7 +157,7 @@ class YouTubeUploader:
 
         body = {
             "snippet": {
-                "title": title[:100],          # YouTube giới hạn 100
+                "title": title[:100],  # YouTube giới hạn 100
                 "description": description[:5000],
                 "tags": (tags or [])[:500],
                 "categoryId": category_id,
@@ -169,9 +167,7 @@ class YouTubeUploader:
                 "selfDeclaredMadeForKids": False,
             },
         }
-        media = MediaFileUpload(
-            video_path, chunksize=-1, resumable=True, mimetype="video/*"
-        )
+        media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype="video/*")
 
         try:
             request = service.videos().insert(
@@ -200,9 +196,9 @@ class YouTubeUploader:
     # Diagnostics
     # =====================================================================
 
-    def list_channels(self) -> Dict[str, Dict[str, Any]]:
+    def list_channels(self) -> dict[str, dict[str, Any]]:
         """Trả về channel-status để UI hiển thị."""
-        out: Dict[str, Dict[str, Any]] = {}
+        out: dict[str, dict[str, Any]] = {}
         for ch_id, ok in self.channels.items():
             out[ch_id] = {
                 "authenticated": bool(ok),
