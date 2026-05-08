@@ -1,0 +1,10 @@
+# VEO SUITE V3.2 - Git Ignore
+*.pyc
+__pycache__/
+*.db
+logs/*.log
+config/settings.json
+.venv/
+venv/
+.env
+.DS_Store

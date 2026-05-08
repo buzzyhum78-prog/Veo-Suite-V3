@@ -1,0 +1,37 @@
+# ============================================
+# VEO SUITE V3.2 — Dependencies
+# ============================================
+# Install: pip install -r requirements.txt
+# ============================================
+
+# --- Core UI ---
+PyQt6>=6.5
+
+# --- AI & LLM ---
+google-generativeai>=0.8
+requests>=2.31
+
+# --- Voice / TTS ---
+edge-tts>=6.1
+
+# --- Image Processing ---
+pillow>=10.0
+
+# --- Translation ---
+deep-translator>=1.11
+
+# --- Browser Automation (Publisher) ---
+playwright>=1.40
+
+# --- Environment Variables ---
+python-dotenv>=1.0
+
+# --- Optional: Background Removal (Thumbnail) ---
+# rembg>=2.0
+# onnxruntime>=1.16
+
+# --- Optional: OpenAI TTS ---
+# openai>=1.0
+
+# --- Optional: Google Cloud TTS ---
+# google-cloud-texttospeech>=2.14

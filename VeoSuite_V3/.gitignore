@@ -1,0 +1,55 @@
+# ============================================
+# VEO SUITE V3.2 — Git Ignore
+# ============================================
+
+# --- Python ---
+*.pyc
+__pycache__/
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# --- Virtual Environment ---
+.venv/
+venv/
+env/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Secrets & Config ---
+.env
+config/settings.json
+
+# --- Database ---
+*.db
+*.db-journal
+*.db-wal
+
+# --- Runtime Data ---
+VEO_DB/
+VEO_DATA/
+VEO_TEMP/
+logs/*.log
+
+# --- Media (Binary) ---
+ffmpeg.exe
+ffprobe.exe
+*.mp3
+*.mp4
+*.wav
+*.srt
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Backup files ---
+*.bak
+*_backup*
+*_cu_*

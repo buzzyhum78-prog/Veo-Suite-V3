@@ -1,0 +1,21 @@
+# Bỏ qua môi trường ảo Python
+venv/
+env/
+.env
+
+# Bỏ qua các file cache và lịch sử
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Bỏ qua các file nén và media nặng (nếu có)
+*.rar
+*.zip
+*.mp4
+*.mp3
+*.avi
+*.mov
+
+# Bỏ qua cơ sở dữ liệu local (nếu dùng SQLite)
+*.sqlite3
+*.db
