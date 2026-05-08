@@ -1,14 +1,7 @@
+"""Static reference data dùng chung cho Phòng Nội Dung (countries, topics, ...).
 
-import os
-import sys
-import time
-import json
-import random
-import requests
-from PyQt6.QtWidgets import *
-from PyQt6.QtCore import *
-from PyQt6.QtGui import *
-from PyQt6.QtMultimedia import *
+File này chỉ chứa hằng số — KHÔNG import PyQt hay framework nào.
+"""
 
 # --- DỮ LIỆU ĐỒNG BỘ VỚI PHÒNG TÌNH BÁO ---
 COUNTRIES_DATA = [

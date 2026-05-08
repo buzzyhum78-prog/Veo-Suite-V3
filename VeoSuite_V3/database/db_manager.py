@@ -6,14 +6,12 @@ Schema chuẩn hoá — ĐÂY LÀ FILE DUY NHẤT QUẢN LÝ DATABASE.
 """
 
 import json
+import logging
 import os
 import sqlite3
-import logging
+import threading
 from pathlib import Path
-from typing import Optional, Dict, Any
-import logging
-from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger("VeoSuite.DB")
 
@@ -35,6 +33,9 @@ class DatabaseManager:
 
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.connection: Optional[sqlite3.Connection] = None
+        # Kết nối SQLite mở với check_same_thread=False để dùng từ nhiều
+        # QThread; phải tự serialize ghi/đọc bằng RLock để tránh race.
+        self._lock = threading.RLock()
         self._initialize_database()
 
     # =========================================================================
@@ -55,89 +56,89 @@ class DatabaseManager:
 
     def _initialize_database(self):
         """Tạo các bảng nếu chưa tồn tại."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            try:
+                self._create_schema(cursor)
+                self._init_default_settings(cursor)
+                conn.commit()
+                logger.info(f"Database ready: {self.db_path}")
+            except sqlite3.Error as e:
+                logger.error(f"Database init error: {e}")
+                conn.rollback()
+                raise
 
-        try:
-            # ── Bảng PROJECTS ──
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS projects (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'draft',
-                    mode TEXT NOT NULL DEFAULT 'manual',
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    CONSTRAINT status_check CHECK (status IN ('draft', 'rendering', 'done')),
-                    CONSTRAINT mode_check CHECK (mode IN ('manual', 'auto'))
-                )
-            """)
+    def _create_schema(self, cursor: sqlite3.Cursor) -> None:
+        """Tạo các bảng + index nếu chưa tồn tại."""
+        # ── Bảng PROJECTS ──
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'draft',
+                mode TEXT NOT NULL DEFAULT 'manual',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT status_check CHECK (status IN ('draft', 'rendering', 'done')),
+                CONSTRAINT mode_check CHECK (mode IN ('manual', 'auto'))
+            )
+        """)
 
-            # ── Bảng SCENES ──
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS scenes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_id INTEGER NOT NULL,
-                    sequence_order INTEGER NOT NULL,
-                    text_content TEXT,
-                    audio_path TEXT,
-                    duration_ms INTEGER DEFAULT 0,
-                    image_prompt TEXT,
-                    image_path TEXT,
-                    image_source TEXT DEFAULT 'stock',
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-                    CONSTRAINT image_source_check CHECK (image_source IN ('stock', 'ai'))
-                )
-            """)
+        # ── Bảng SCENES ──
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS scenes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                sequence_order INTEGER NOT NULL,
+                text_content TEXT,
+                audio_path TEXT,
+                duration_ms INTEGER DEFAULT 0,
+                image_prompt TEXT,
+                image_path TEXT,
+                image_source TEXT DEFAULT 'stock',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                CONSTRAINT image_source_check CHECK (image_source IN ('stock', 'ai'))
+            )
+        """)
 
-            # ── Index cho scenes ──
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_scenes_project_id 
-                ON scenes(project_id)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_scenes_sequence 
-                ON scenes(project_id, sequence_order)
-            """)
+        # ── Index cho scenes ──
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_scenes_project_id
+            ON scenes(project_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_scenes_sequence
+            ON scenes(project_id, sequence_order)
+        """)
 
-            # ── Bảng SETTINGS (key-value store) ──
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    description TEXT,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+        # ── Bảng SETTINGS (key-value store) ──
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                description TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-            # ── Bảng ACCOUNTS (cho phòng Ops) ──
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS accounts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    platform TEXT NOT NULL,
-                    username TEXT NOT NULL,
-                    cookies TEXT,
-                    proxy TEXT,
-                    status TEXT DEFAULT 'warmup',
-                    last_used DATETIME,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    notes TEXT,
-                    CONSTRAINT status_check CHECK (status IN ('warmup', 'money', 'burn')),
-                    UNIQUE(platform, username)
-                )
-            """)
-
-            # Khởi tạo settings mặc định
-            self._init_default_settings(cursor)
-
-            conn.commit()
-            logger.info(f"Database ready: {self.db_path}")
-
-        except sqlite3.Error as e:
-            logger.error(f"Database init error: {e}")
-            conn.rollback()
-            raise
+        # ── Bảng ACCOUNTS (cho phòng Ops) ──
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                platform TEXT NOT NULL,
+                username TEXT NOT NULL,
+                cookies TEXT,
+                proxy TEXT,
+                status TEXT DEFAULT 'warmup',
+                last_used DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
+                CONSTRAINT status_check CHECK (status IN ('warmup', 'money', 'burn')),
+                UNIQUE(platform, username)
+            )
+        """)
 
     def _init_default_settings(self, cursor: sqlite3.Cursor):
         """Insert settings mặc định nếu chưa có."""
@@ -161,8 +162,9 @@ class DatabaseManager:
     def check_db_integrity(self) -> bool:
         """Kiểm tra toàn vẹn database."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
+            with self._lock:
+                conn = self._get_connection()
+                cursor = conn.cursor()
 
             # Kiểm tra bảng tồn tại
             required = ['projects', 'scenes', 'settings', 'accounts']
@@ -198,30 +200,25 @@ class DatabaseManager:
 
     def get_stats(self) -> Dict[str, Any]:
         """Lấy thống kê database."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        stats = {}
-
+        stats: Dict[str, Any] = {}
         try:
-            cursor.execute("SELECT COUNT(*) FROM projects")
-            stats['total_projects'] = cursor.fetchone()[0]
-
-            cursor.execute("SELECT COUNT(*) FROM scenes")
-            stats['total_scenes'] = cursor.fetchone()[0]
-
-            cursor.execute("SELECT COUNT(*) FROM accounts")
-            stats['total_accounts'] = cursor.fetchone()[0]
-
+            with self._lock:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM projects")
+                stats['total_projects'] = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM scenes")
+                stats['total_scenes'] = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM accounts")
+                stats['total_accounts'] = cursor.fetchone()[0]
             if self.db_path.exists():
                 stats['db_size_mb'] = round(self.db_path.stat().st_size / (1024 * 1024), 2)
             else:
                 stats['db_size_mb'] = 0
-
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(f"Stats error: {e}")
             stats = {'total_projects': 0, 'total_scenes': 0,
                      'total_accounts': 0, 'db_size_mb': 0}
-
         return stats
 
     # =========================================================================
@@ -230,32 +227,36 @@ class DatabaseManager:
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
         """Chạy SQL và commit."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(sql, params)
-        conn.commit()
-        return cursor
+        with self._lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            conn.commit()
+            return cursor
 
     def fetch_all(self, sql: str, params: tuple = ()) -> list:
         """Chạy SELECT, trả về list of Row."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(sql, params)
-        return cursor.fetchall()
+        with self._lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            return cursor.fetchall()
 
     def fetch_one(self, sql: str, params: tuple = ()):
         """Chạy SELECT, trả về 1 row hoặc None."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(sql, params)
-        return cursor.fetchone()
+        with self._lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            return cursor.fetchone()
 
     def close(self):
         """Đóng kết nối."""
-        if self.connection:
-            self.connection.close()
-            self.connection = None
-            logger.info("Database connection closed")
+        with self._lock:
+            if self.connection:
+                self.connection.close()
+                self.connection = None
+                logger.info("Database connection closed")
 
     # =========================================================================
     # JSON PROJECT STORAGE (Backward compat với UI cũ)
@@ -296,13 +297,21 @@ class DatabaseManager:
         except IOError as e:
             logger.error(f"Cannot save {filename}: {e}")
 
-    def update_task_status(self, p_id: int, t_id: int, status: str):
-        """Backward compatibility: Cập nhật trạng thái của 1 task trong JSON storage."""
+    def update_task_status(self, project_index: int, task_id: int, status: str) -> bool:
+        """
+        Backward-compat: cập nhật status của 1 task trong JSON storage.
+
+        Args:
+            project_index: chỉ số (0-based) của project trong list `projects.json`,
+                KHÔNG phải `project_id` trong SQLite.
+            task_id:       giá trị trường `id` của task trong `proj["tasks"]`.
+            status:        chuỗi trạng thái mới.
+        """
         projects = self.load_projects()
-        if 0 <= p_id < len(projects):
-            proj = projects[p_id]
+        if 0 <= project_index < len(projects):
+            proj = projects[project_index]
             for t in proj.get("tasks", []):
-                if t.get("id") == t_id:
+                if t.get("id") == task_id:
                     t["status"] = status
                     self.save_projects(projects)
                     return True

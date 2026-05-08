@@ -254,7 +254,7 @@ class VoiceWorker(QThread):
             try:
                 if hasattr(submaker, 'generate_subs'): file.write(submaker.generate_subs())
                 elif hasattr(submaker, 'get_subs'): file.write(submaker.get_subs())
-            except: pass
+            except Exception: pass
 
     def _generate_srt_heuristic(self, text, srt_path):
         try:
@@ -270,7 +270,7 @@ class VoiceWorker(QThread):
                 srt_content += f"{i+1}\n{fmt(start)} --> {fmt(end)}\n{sen}\n\n"
                 current_time = end
             with open(srt_path, "w", encoding="utf-8") as f: f.write(srt_content)
-        except: pass
+        except Exception: pass
 
 
 # ============================================================================
@@ -326,7 +326,7 @@ class VisualWorker(QThread):
         try:
             from modules.assets_factory.prompt_templates import get_prompt_prefix
             style_prompt_prefix = get_prompt_prefix(target_style)
-        except:
+        except Exception:
             style_prompt_prefix = target_style  # Fallback dùng tên style thô
 
         if not STOCK_AVAILABLE:
@@ -371,7 +371,7 @@ class VisualWorker(QThread):
                             scene_type = data.get("type", "stock")
                             search_query = data.get("keywords", line)
                             ai_prompt = data.get("prompt", line)
-                    except: pass
+                    except Exception: pass
 
                 # Ghi đè scene_type dựa trên cấu hình người dùng
                 if self.ai_ratio == 100:
@@ -428,7 +428,7 @@ class VisualWorker(QThread):
                     for f in os.listdir(save_dir):
                         if f.startswith(f"scene_{scene_num:02d}_") and f != os.path.basename(off_path):
                             try: os.remove(os.path.join(save_dir, f))
-                            except: pass
+                            except Exception: pass
 
                     if os.path.exists(off_path): os.remove(off_path)
                     os.rename(final_path, off_path)
@@ -516,7 +516,7 @@ class RenderVideoWorker(QThread):
                 if os.path.exists(sig_file):
                     try:
                         with open(sig_file, "r", encoding="utf-8") as f: signature = f.read().strip()
-                    except: pass
+                    except Exception: pass
                 
                 if os.path.exists(logo_path) or signature:
                     self.progress_signal.emit("🎨 Đang chèn Branding (Logo/Chữ ký)...")

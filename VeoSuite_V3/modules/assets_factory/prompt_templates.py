@@ -231,7 +231,7 @@ Reply with ONLY the style name, nothing else."""
             for name in style_names:
                 if name.lower() == chosen.lower():
                     return name
-    except:
+    except Exception:
         pass
     
     return "Cinematic"  # Default fallback

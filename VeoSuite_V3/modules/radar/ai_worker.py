@@ -1,4 +1,5 @@
 
+import logging
 import os
 import sys
 import time
@@ -48,6 +49,9 @@ except ImportError:
 
 
 from modules.radar.constants import *
+
+logger = logging.getLogger("VeoSuite.Radar.AIWorker")
+
 
 class RadarAIWorker(QThread):
     """Xử lý gọi Gemini AI để sinh từ khóa hoặc phân tích"""
@@ -440,7 +444,7 @@ class RadarAIWorker(QThread):
                                         # Parse thành Dictionary Python
                                         meta_data = json.loads(json_str)
                                 except Exception as e:
-                                    print(f"⚠️ Lỗi Parse JSON: {e}")
+                                    logger.info(f"⚠️ Lỗi Parse JSON: {e}")
 
                     # Fallback: Nếu AI quên separator (Hiếm gặp với prompt V6.1)
                     if not en_part and len(parts) > 1: en_part = parts[0]

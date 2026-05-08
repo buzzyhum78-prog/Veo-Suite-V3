@@ -1,38 +1,32 @@
+"""Workers cho Phòng Nội Dung — viết kịch bản, tạo audio, dịch tooltip ..."""
 
-import os
-import sys
-import time
-import json
-import random
-import requests
-from PyQt6.QtWidgets import *
-from PyQt6.QtCore import *
-from PyQt6.QtGui import *
-from PyQt6.QtMultimedia import *
-
-import os
-import sys
-import json
-import re
 import datetime
+import json
+import logging
+import os
+import random
+import re
+import threading
 import time
-import threading # Để dịch không bị đơ máy
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QPushButton, QFrame, QSplitter, QTableWidget, QProgressDialog,
-    QHeaderView, QAbstractItemView, QSpinBox, QCheckBox,
-    QGroupBox, QFormLayout, QLineEdit, QListWidget, QListWidgetItem,
-    QMessageBox, QTableWidgetItem, QTextEdit, QApplication, QScrollArea, QSizePolicy,
-    QGridLayout, QInputDialog, QFileDialog, QDialog, QDialogButtonBox, QMenu, QToolButton
-)
-from PyQt6.QtGui import QFont, QColor, QCursor
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+
+import requests
 from deep_translator import GoogleTranslator
+from PyQt6.QtCore import QThread, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QColor, QCursor, QFont
+from PyQt6.QtWidgets import (
+    QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
+    QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
+    QGroupBox, QHBoxLayout, QHeaderView, QInputDialog, QLabel,
+    QLineEdit, QListWidget, QListWidgetItem, QMenu, QMessageBox,
+    QProgressDialog, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
+    QSplitter, QTableWidget, QTableWidgetItem, QTextEdit, QToolButton,
+    QVBoxLayout, QWidget,
+)
+
+from services.ai_factory import AIFactory
 from services.database_manager import DatabaseManager
-from services.ai_factory import AIFactory      
 
-
-from modules.content.constants import *
+logger = logging.getLogger("VeoSuite.Content.Workers")
 
 class ScriptWriterWorker(QThread):
     # Tín hiệu trả về: (Project_Index, Task_ID, Kết quả)
@@ -197,14 +191,14 @@ class ChannelDesignerWorker(QThread):
                 if match:
                     self.finished_signal.emit(json.loads(match.group(1)))
                 else:
-                    print(f"❌ Lỗi Parse JSON Design: {res[:100]}...")
+                    logger.info(f"❌ Lỗi Parse JSON Design: {res[:100]}...")
                     self.finished_signal.emit({}) # Lỗi parse
             else:
-                print(f"❌ Lỗi API Design: {res}")        
+                logger.info(f"❌ Lỗi API Design: {res}")        
                 self.finished_signal.emit({}) # Lỗi API
 
         except Exception as e:
-            print("Lỗi Channel Worker:", e)
+            logger.info("Lỗi Channel Worker:", e)
             self.finished_signal.emit({})
 
 # --- WORKER 2: AI BÀO KEY (STRATEGIC EXPANSION V2) ---
@@ -224,7 +218,7 @@ class IdeaExpansionWorker(QThread):
             # 1. Lấy cấu hình cho việc "Tìm Trends/Bào Key" (researcher)
             config = self.ai.get_worker_config("researcher")
             if not config:
-                print("❌ Lỗi Bào Key: Chưa cấu hình 'Chuyên viên phân tích' trong Admin!")
+                logger.info("❌ Lỗi Bào Key: Chưa cấu hình 'Chuyên viên phân tích' trong Admin!")
                 self.finished_signal.emit([]) 
                 return
             
@@ -258,7 +252,7 @@ class IdeaExpansionWorker(QThread):
             
             # Kiểm tra xem nó có trả về đúng 2 giá trị không
             if not result_tuple or len(result_tuple) != 2:
-                print(f"❌ Lỗi Critical: Hàm AI trả về dữ liệu sai định dạng: {result_tuple}")
+                logger.info(f"❌ Lỗi Critical: Hàm AI trả về dữ liệu sai định dạng: {result_tuple}")
                 self.finished_signal.emit([])
                 return
 
@@ -272,7 +266,7 @@ class IdeaExpansionWorker(QThread):
                 # Kiểm tra lỗi giả (False success)
                 error_keywords = ["503", "exhausted", "unavailable", "limit reached"]
                 if any(k in res_str.lower() for k in error_keywords) and len(res_str) < 200:
-                    print(f"❌ Lỗi AI (Detected in result): {res_str}")
+                    logger.info(f"❌ Lỗi AI (Detected in result): {res_str}")
                     self.finished_signal.emit([])
                     return
 
@@ -284,16 +278,16 @@ class IdeaExpansionWorker(QThread):
                         titles.append(clean)
                 
                 if not titles:
-                    print("❌ Lỗi: AI không trả về ý tưởng nào hợp lệ.")
+                    logger.info("❌ Lỗi: AI không trả về ý tưởng nào hợp lệ.")
                     self.finished_signal.emit([])
                 else:
                     self.finished_signal.emit(titles[:self.quantity])
             else:
-                print(f"❌ Lỗi AI: {res}")
+                logger.info(f"❌ Lỗi AI: {res}")
                 self.finished_signal.emit([])
 
         except Exception as e: 
-            print(f"❌ Lỗi Crash Worker: {e}")
+            logger.info(f"❌ Lỗi Crash Worker: {e}")
             self.finished_signal.emit([])
 
 # [CLASS MỚI] AI KIẾN TRÚC SƯ (THIẾT KẾ KÊNH)
@@ -339,7 +333,7 @@ class ChannelDesignWorker(QThread):
                 if match:
                     data = json.loads(match.group(1))
                     self.finished.emit(data)
-            except:
+            except Exception:
                 pass
 
 # --- WORKER 3: KỸ SƯ ÂM THANH (AUDIO GENERATOR) ---
@@ -532,7 +526,7 @@ class BatchTitleGeneratorWorker(QThread):
             
             success, res = self.ai.execute_custom_ai(config["provider"], prompt, config["model"])
             # --- [DEBUG] IN KẾT QUẢ THÔ RA ĐỂ KIỂM TRA ---
-            print(f"\n[{self.country}] RAW RESPONSE:\n{str(res)[:200]}...\n")
+            logger.info(f"\n[{self.country}] RAW RESPONSE:\n{str(res)[:200]}...\n")
 
             titles = []
             if success:
@@ -540,7 +534,7 @@ class BatchTitleGeneratorWorker(QThread):
                 # Kiểm tra lỗi giả
                 error_keywords = ["503", "exhausted", "unavailable", "limit reached"]
                 if any(k in res_str.lower() for k in error_keywords) and len(res_str) < 200:
-                    print(f"❌ Lỗi AI ({self.country}) (Detected in result): {res_str}")
+                    logger.info(f"❌ Lỗi AI ({self.country}) (Detected in result): {res_str}")
                     self.finished_signal.emit([])
                     return
 
@@ -581,10 +575,10 @@ class BatchTitleGeneratorWorker(QThread):
             
                 self.finished_signal.emit(titles[:self.quantity])
             else:
-                print(f"❌ Lỗi AI ({self.country}): {res}")
+                logger.info(f"❌ Lỗi AI ({self.country}): {res}")
                 self.finished_signal.emit([])
         except Exception as e:
-            print(f"Lỗi Title Gen: {e}")
+            logger.info(f"Lỗi Title Gen: {e}")
             self.finished_signal.emit([])
 
 # --- WORKER 5: THỢ DỊCH TOOLTIP (HOVER TRANSLATOR) ---
