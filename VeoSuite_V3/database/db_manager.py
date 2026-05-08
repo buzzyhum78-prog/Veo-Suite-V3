@@ -11,7 +11,7 @@ import os
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("VeoSuite.DB")
 
@@ -19,7 +19,7 @@ logger = logging.getLogger("VeoSuite.DB")
 class DatabaseManager:
     """
     Singleton quản lý Database SQLite cho VEO SUITE V3.2.
-    
+
     Usage:
         db = DatabaseManager()                  # Dùng path mặc định
         db = DatabaseManager("/path/to/db")     # Chỉ định path
@@ -32,7 +32,7 @@ class DatabaseManager:
             self.db_path = Path(db_path)
 
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection: Optional[sqlite3.Connection] = None
+        self.connection: sqlite3.Connection | None = None
         # Kết nối SQLite mở với check_same_thread=False để dùng từ nhiều
         # QThread; phải tự serialize ghi/đọc bằng RLock để tránh race.
         self._lock = threading.RLock()
@@ -228,9 +228,9 @@ class DatabaseManager:
             logger.error(f"Integrity check error: {e}")
             return False
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Lấy thống kê database."""
-        stats: Dict[str, Any] = {}
+        stats: dict[str, Any] = {}
         try:
             with self._lock:
                 conn = self._get_connection()
@@ -303,14 +303,14 @@ class DatabaseManager:
         )
         return int(cur.lastrowid)
 
-    def get_project(self, project_id: int) -> Optional[Dict[str, Any]]:
+    def get_project(self, project_id: int) -> dict[str, Any] | None:
         """Lấy 1 project theo id (hoặc None)."""
         row = self.fetch_one(
             "SELECT * FROM projects WHERE id = ?", (project_id,)
         )
         return dict(row) if row else None
 
-    def list_projects(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_projects(self, status: str | None = None) -> list[dict[str, Any]]:
         """List tất cả project (tuỳ chọn lọc theo status)."""
         if status:
             rows = self.fetch_all(
@@ -366,7 +366,7 @@ class DatabaseManager:
         )
         return int(cur.lastrowid)
 
-    def list_scenes(self, project_id: int) -> List[Dict[str, Any]]:
+    def list_scenes(self, project_id: int) -> list[dict[str, Any]]:
         """Liệt kê scenes của project, sắp theo sequence_order."""
         rows = self.fetch_all(
             "SELECT * FROM scenes WHERE project_id = ? ORDER BY sequence_order ASC",
@@ -404,9 +404,9 @@ class DatabaseManager:
         video_path: str,
         title: str = "",
         description: str = "",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         privacy_status: str = "private",
-        schedule_time: Optional[str] = None,
+        schedule_time: str | None = None,
     ) -> int:
         """Đẩy 1 video vào hàng đợi publish. schedule_time là ISO string."""
         from datetime import datetime
@@ -426,8 +426,8 @@ class DatabaseManager:
         return int(cur.lastrowid)
 
     def list_publish_queue(
-        self, status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, status: str | None = None
+    ) -> list[dict[str, Any]]:
         """Liệt kê các task trong queue."""
         if status:
             rows = self.fetch_all(
@@ -445,14 +445,14 @@ class DatabaseManager:
     def update_publish_task(
         self,
         task_id: int,
-        status: Optional[str] = None,
-        last_error: Optional[str] = None,
-        result_url: Optional[str] = None,
+        status: str | None = None,
+        last_error: str | None = None,
+        result_url: str | None = None,
         increment_attempts: bool = False,
     ) -> bool:
         """Cập nhật trạng thái 1 task publish."""
-        sets: List[str] = []
-        params: List[Any] = []
+        sets: list[str] = []
+        params: list[Any] = []
         if status is not None:
             sets.append("status = ?")
             params.append(status)
@@ -475,12 +475,79 @@ class DatabaseManager:
         return cur.rowcount > 0
 
     # ---------------------------------------------------------------------
+    # accounts (Ops Center)
+    # ---------------------------------------------------------------------
+
+    def list_accounts(
+        self, platform: str | None = None, status: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Liệt kê accounts (kênh / tài khoản) cho Ops tab.
+
+        Có thể lọc theo ``platform`` (vd 'youtube', 'tiktok') và/hoặc
+        ``status`` ('warmup', 'money', 'burn').
+        """
+        clauses: list[str] = []
+        params: list[Any] = []
+        if platform:
+            clauses.append("platform = ?")
+            params.append(platform)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        sql = "SELECT * FROM accounts"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY id DESC"
+        rows = self.fetch_all(sql, tuple(params))
+        return [dict(r) for r in rows]
+
+    def create_account(
+        self,
+        platform: str,
+        username: str,
+        cookies: str | None = None,
+        proxy: str | None = None,
+        status: str = "warmup",
+        notes: str | None = None,
+    ) -> int:
+        """Thêm 1 account vào kho. Trả về account_id."""
+        cur = self.execute(
+            """
+            INSERT INTO accounts (platform, username, cookies, proxy, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (platform, username, cookies, proxy, status, notes),
+        )
+        return int(cur.lastrowid)
+
+    def update_account(self, account_id: int, **fields: Any) -> bool:
+        """Cập nhật các trường account. Bỏ qua field lạ."""
+        ALLOWED = {
+            "platform", "username", "cookies", "proxy",
+            "status", "last_used", "notes",
+        }
+        clean = {k: v for k, v in fields.items() if k in ALLOWED}
+        if not clean:
+            return False
+        sets = ", ".join(f"{k} = ?" for k in clean)
+        params = tuple(clean.values()) + (account_id,)
+        cur = self.execute(
+            f"UPDATE accounts SET {sets} WHERE id = ?", params
+        )
+        return cur.rowcount > 0
+
+    def delete_account(self, account_id: int) -> bool:
+        """Xoá 1 account."""
+        cur = self.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+        return cur.rowcount > 0
+
+    # ---------------------------------------------------------------------
     # Migration: projects.json → SQLite
     # ---------------------------------------------------------------------
 
     def migrate_legacy_projects_json(
         self, filename: str = "projects.json"
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """One-shot migration: nạp projects từ legacy JSON vào bảng SQLite.
 
         Idempotent: chỉ thêm project có name chưa tồn tại trong DB. Trả về
@@ -550,7 +617,7 @@ class DatabaseManager:
                     data = json.load(f)
                 if isinstance(data, list):
                     return data
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"Cannot load {filename}: {e}")
         return []
 
@@ -562,7 +629,7 @@ class DatabaseManager:
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(projects, f, indent=2, ensure_ascii=False)
             logger.debug(f"Projects saved: {len(projects)} items -> {filename}")
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Cannot save {filename}: {e}")
 
     def update_task_status(self, project_index: int, task_id: int, status: str) -> bool:
