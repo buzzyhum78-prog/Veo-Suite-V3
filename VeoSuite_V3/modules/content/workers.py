@@ -197,8 +197,8 @@ class ChannelDesignerWorker(QThread):
                 logger.info(f"❌ Lỗi API Design: {res}")        
                 self.finished_signal.emit({}) # Lỗi API
 
-        except Exception as e:
-            logger.info("Lỗi Channel Worker:", e)
+        except Exception:
+            logger.exception("Lỗi Channel Worker")
             self.finished_signal.emit({})
 
 # --- WORKER 2: AI BÀO KEY (STRATEGIC EXPANSION V2) ---

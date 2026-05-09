@@ -190,38 +190,44 @@ class DatabaseManager:
     # =========================================================================
 
     def check_db_integrity(self) -> bool:
-        """Kiểm tra toàn vẹn database."""
+        """Kiểm tra toàn vẹn database.
+
+        Giữ ``self._lock`` xuyên suốt mọi cursor.execute() để tránh race với
+        các writer khác (tab UI gọi ``execute()`` từ thread khác). Cùng
+        pattern với ``execute()``/``fetch_all()``/``get_stats()``.
+        """
         try:
             with self._lock:
                 conn = self._get_connection()
                 cursor = conn.cursor()
 
-            # Kiểm tra bảng tồn tại
-            required = ["projects", "scenes", "settings", "accounts"]
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?, ?, ?)", required
-            )
-            existing = [row[0] for row in cursor.fetchall()]
-            if len(existing) != len(required):
-                missing = set(required) - set(existing)
-                logger.error(f"Missing tables: {missing}")
-                return False
+                # Kiểm tra bảng tồn tại
+                required = ["projects", "scenes", "settings", "accounts"]
+                cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?, ?, ?)",
+                    required,
+                )
+                existing = [row[0] for row in cursor.fetchall()]
+                if len(existing) != len(required):
+                    missing = set(required) - set(existing)
+                    logger.error(f"Missing tables: {missing}")
+                    return False
 
-            # PRAGMA integrity_check
-            cursor.execute("PRAGMA integrity_check")
-            result = cursor.fetchone()[0]
-            if result != "ok":
-                logger.error(f"Integrity check failed: {result}")
-                return False
+                # PRAGMA integrity_check
+                cursor.execute("PRAGMA integrity_check")
+                result = cursor.fetchone()[0]
+                if result != "ok":
+                    logger.error(f"Integrity check failed: {result}")
+                    return False
 
-            # Foreign key check
-            cursor.execute("PRAGMA foreign_key_check")
-            fk_errors = cursor.fetchall()
-            if fk_errors:
-                logger.error(f"FK violations: {fk_errors}")
-                return False
+                # Foreign key check
+                cursor.execute("PRAGMA foreign_key_check")
+                fk_errors = cursor.fetchall()
+                if fk_errors:
+                    logger.error(f"FK violations: {fk_errors}")
+                    return False
 
-            return True
+                return True
 
         except sqlite3.Error as e:
             logger.error(f"Integrity check error: {e}")

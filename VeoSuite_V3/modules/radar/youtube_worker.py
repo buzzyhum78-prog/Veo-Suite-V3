@@ -405,7 +405,7 @@ class RealYouTubeWorker(QThread):
                         except Exception:
                             logger.info("⚠️ Lỗi khởi tạo Key, thử key kế...")
                             current_key_index = (current_key_index + 1) % len(api_keys)
-                            attempts_with_current_confi += 1
+                            attempts_with_current_config += 1
                             continue
 
                     try:
