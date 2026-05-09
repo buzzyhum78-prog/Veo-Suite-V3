@@ -29,9 +29,177 @@ if str(ROOT) not in sys.path:
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+
+# ---------------------------------------------------------------------------
+# FFmpeg detection + fixture media synthesis
+# ---------------------------------------------------------------------------
+import shutil
+
 PR5_FIXTURES = Path("/tmp/pr5")
-FFMPEG = "/usr/bin/ffmpeg"
-FFPROBE = "/usr/bin/ffprobe"
+FFMPEG = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
+FFPROBE = shutil.which("ffprobe") or "/usr/bin/ffprobe"
+HAS_FFMPEG = bool(shutil.which("ffmpeg")) and bool(shutil.which("ffprobe"))
+
+requires_ffmpeg = pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg/ffprobe not available on PATH")
+
+
+def _run_ffmpeg(cmd: list[str]) -> None:
+    """Run an ffmpeg fixture-creation command, surfacing stderr on failure."""
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if proc.returncode != 0:  # pragma: no cover — fixture build failure
+        raise RuntimeError(f"ffmpeg fixture build failed: {' '.join(cmd[:3])}...\n{proc.stderr[-500:]}")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _build_pr5_fixtures():
+    """Idempotently materialise the /tmp/pr5 media fixtures.
+
+    Created with ``ffmpeg`` lavfi sources so the suite has zero dependency on
+    external sample files. If ``ffmpeg`` isn't on PATH the body is a no-op
+    and downstream tests that need media will skip via ``requires_ffmpeg``.
+    """
+    if not HAS_FFMPEG:
+        return
+    PR5_FIXTURES.mkdir(parents=True, exist_ok=True)
+    img_a = PR5_FIXTURES / "img_a.png"
+    img_b = PR5_FIXTURES / "img_b.png"
+    voice = PR5_FIXTURES / "voice.mp3"
+    music = PR5_FIXTURES / "music.mp3"
+    clip_a = PR5_FIXTURES / "clip_a.mp4"
+    clip_b = PR5_FIXTURES / "clip_b.mp4"
+    list_txt = PR5_FIXTURES / "list.txt"
+    sub_srt = PR5_FIXTURES / "sub.srt"
+    padded = PR5_FIXTURES / "padded.mp3"
+
+    if not img_a.exists():
+        _run_ffmpeg(
+            [FFMPEG, "-y", "-f", "lavfi", "-i", "color=c=red:s=1280x720:d=0.04", "-frames:v", "1", str(img_a)]
+        )
+    if not img_b.exists():
+        _run_ffmpeg(
+            [
+                FFMPEG,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=blue:s=1280x720:d=0.04",
+                "-frames:v",
+                "1",
+                str(img_b),
+            ]
+        )
+    if not voice.exists():
+        _run_ffmpeg(
+            [
+                FFMPEG,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=6",
+                "-ar",
+                "44100",
+                "-ac",
+                "2",
+                str(voice),
+            ]
+        )
+    if not music.exists():
+        _run_ffmpeg(
+            [
+                FFMPEG,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "aevalsrc=sin(220*2*PI*t):duration=30",
+                "-ar",
+                "44100",
+                "-ac",
+                "2",
+                str(music),
+            ]
+        )
+    if not clip_a.exists():
+        _run_ffmpeg(
+            [
+                FFMPEG,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=green:s=1280x720:d=5",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=330:duration=5",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                str(clip_a),
+            ]
+        )
+    if not clip_b.exists():
+        _run_ffmpeg(
+            [
+                FFMPEG,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=yellow:s=1280x720:d=4",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=550:duration=4",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                str(clip_b),
+            ]
+        )
+    if not list_txt.exists():
+        list_txt.write_text(f"file '{clip_a}'\nfile '{clip_b}'\n")
+    if not sub_srt.exists():
+        sub_srt.write_text(
+            "1\n00:00:00,500 --> 00:00:02,500\nHello PR-5\n\n2\n00:00:03,000 --> 00:00:04,500\nBurn-in test\n"
+        )
+    if not padded.exists():
+        # 3s silence + 6s tone + 3s silence = 12s
+        _run_ffmpeg(
+            [
+                FFMPEG,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "aevalsrc=0:duration=3",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=6",
+                "-f",
+                "lavfi",
+                "-i",
+                "aevalsrc=0:duration=3",
+                "-filter_complex",
+                "[0:a][1:a][2:a]concat=n=3:v=0:a=1[out]",
+                "-map",
+                "[out]",
+                "-ar",
+                "44100",
+                "-ac",
+                "2",
+                str(padded),
+            ]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -592,19 +760,30 @@ class TestT5AudioAsync:
 # ===========================================================================
 # T6 — main.py splash refactor
 # ===========================================================================
+def _import_main_or_skip():
+    """Try to import VeoSuite_V3.main; skip if heavy legacy deps are missing.
+
+    ``main.py`` triggers MainWindow construction which transitively imports
+    ``ui.widgets.media_tab`` (``from google import genai``). On CI we don't
+    install the ``google-genai`` package — those tests should skip rather
+    than fail because the splash refactor is fully checkable from source.
+    """
+    try:
+        import main as main_mod
+    except ImportError as exc:
+        pytest.skip(f"main.py heavy import unavailable: {exc}")
+    return main_mod
+
+
 class TestT6MainSplash:
     def test_t6_1_check_dependencies_ok(self):
-        # Lazy import — main.py imports MainWindow which is heavy
-        from main import check_dependencies
-
-        assert check_dependencies() is True
+        main_mod = _import_main_or_skip()
+        assert main_mod.check_dependencies() is True
 
     def test_t6_2_check_dependencies_missing(self, monkeypatch):
-        # Monkeypatch the importlib.util.find_spec call inside the function
-        # by patching builtins-style. Easiest: patch the source module.
         from importlib import util as imp_util
 
-        import main as main_mod
+        main_mod = _import_main_or_skip()
 
         original = imp_util.find_spec
 
@@ -617,9 +796,8 @@ class TestT6MainSplash:
         assert main_mod.check_dependencies() is False
 
     def test_t6_3_splash_update_status(self, qapp):
-        from main import ModernSplashScreen
-
-        splash = ModernSplashScreen("VEO TEST", "0.0.1", "/no/logo")
+        main_mod = _import_main_or_skip()
+        splash = main_mod.ModernSplashScreen("VEO TEST", "0.0.1", "/no/logo")
         splash.update_status("Step X", 50)
         assert splash.lbl_status.text() == "Step X"
         assert splash.progress.value() == 50
@@ -644,10 +822,8 @@ class TestT6MainSplash:
         assert src.count("QTimer.singleShot") >= 2
 
     def test_t6_6_main_module_imports(self):
-        # If we got here we already imported from `main`, so just sanity
-        import main
-
-        assert hasattr(main, "main") and callable(main.main)
+        main_mod = _import_main_or_skip()
+        assert hasattr(main_mod, "main") and callable(main_mod.main)
 
 
 # ===========================================================================

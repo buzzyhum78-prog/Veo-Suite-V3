@@ -23,14 +23,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install system deps for PyQt6 (offscreen)
+      - name: Install system deps for PyQt6 (offscreen) + ffmpeg
         run: |
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends \
             libegl1 libgl1 libxkbcommon0 libdbus-1-3 \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
             libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
-            libxcb-shape0 libxcb-xkb1
+            libxcb-shape0 libxcb-xkb1 \
+            ffmpeg
 
       - name: Install Python deps
         run: |
