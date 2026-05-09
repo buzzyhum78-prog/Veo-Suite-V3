@@ -4,7 +4,11 @@ on:
   push:
     branches: [main, master]
   pull_request:
-    branches: [main, master]
+    # Run CI on PRs targeting main/master AND on stacked PRs that target
+    # in-progress devin/* feature branches (e.g. PR-5b1 stacks on PR-5's
+    # `devin/1778252165-pr5-refactor`). Without `devin/**` here, stacked PRs
+    # would not get CI signal, forcing reviewers to trust the parent PR's CI.
+    branches: [main, master, "devin/**"]
 
 jobs:
   lint-and-test:
