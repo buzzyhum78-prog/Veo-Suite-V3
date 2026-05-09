@@ -1,16 +1,17 @@
 # Plugin Registry
-from .youtube_api import YouTubePlatform
-from .tiktok_api import TikTokPlatform
 from .facebook_api import FacebookReelsPlatform
 from .instagram_api import InstagramPlatform
+from .tiktok_api import TikTokPlatform
+from .youtube_api import YouTubePlatform
 
 # Danh sách các plugin được hỗ trợ sẵn
 AVAILABLE_PLATFORMS = {
     "YouTube": YouTubePlatform,
     "TikTok": TikTokPlatform,
     "Facebook Reels": FacebookReelsPlatform,
-    "Instagram": InstagramPlatform
+    "Instagram": InstagramPlatform,
 }
+
 
 def get_platform_instance(platform_name: str):
     """Factory method để lấy instance của một nền tảng dựa trên tên"""

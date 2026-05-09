@@ -191,7 +191,7 @@ def _load_voice_cache():
                 data = json.load(f)
                 if len(data) > 20: # Chỉ dùng nếu file có đủ dữ liệu
                     _GLOBAL_VOICE_CACHE = data
-        except: pass
+        except Exception: pass
     
     # 3. Nếu Cache file chưa có hoặc lỗi, chạy ngầm tải về (nhưng không block UI)
     if len(_GLOBAL_VOICE_CACHE) < 20:
@@ -203,7 +203,7 @@ def _load_voice_cache():
                 with open(VOICE_DB_FILE, "w", encoding="utf-8") as f:
                     json.dump(_GLOBAL_VOICE_CACHE, f, ensure_ascii=False)
                 logger.info(f"Voice cache saved: {len(_GLOBAL_VOICE_CACHE)} voices")
-            except: pass
+            except Exception: pass
 
     return _GLOBAL_VOICE_CACHE
 
@@ -305,7 +305,7 @@ def get_smart_voice_config(country_code, topic_string):
     try:
         base_rate = int(rule["rate"].replace("%", "").replace("+", ""))
         base_pitch = int(rule["pitch"].replace("Hz", "").replace("+", ""))
-    except: base_rate=0; base_pitch=0
+    except Exception: base_rate=0; base_pitch=0
     
     # Biến thiên tự nhiên
     final_rate = base_rate + random.randint(-2, 2)
@@ -338,4 +338,4 @@ def get_smart_voice_config(country_code, topic_string):
 
 # --- INIT ASYNC (Kích hoạt ngay khi import) ---
 try: _load_voice_cache()
-except: pass
+except Exception: pass

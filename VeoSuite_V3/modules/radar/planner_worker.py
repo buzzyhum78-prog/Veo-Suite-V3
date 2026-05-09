@@ -1,4 +1,5 @@
 
+import logging
 import os
 import sys
 import time
@@ -49,6 +50,9 @@ except ImportError:
 
 from modules.radar.constants import *
 
+logger = logging.getLogger("VeoSuite.Radar.PlannerWorker")
+
+
 class QuickPlannerWorker(QThread):
     finished = pyqtSignal(list) # Trả về list các dict thông tin kênh
     
@@ -71,8 +75,8 @@ class QuickPlannerWorker(QThread):
         root_key = self.spy_dna.get("root_keyword", self.niche)
 
         # In log để debug
-        print(f"🤖 Planner đang dùng AI: {provider} ({model})")
-        print(f"🧬 DNA kế thừa: Style='{inherited_style}' | Key='{root_key}'")
+        logger.info(f"🤖 Planner đang dùng AI: {provider} ({model})")
+        logger.info(f"🧬 DNA kế thừa: Style='{inherited_style}' | Key='{root_key}'")
         
         # [NÂNG CẤP 1] LANGUAGE MAP (Định nghĩa chính xác hệ chữ viết)
         # Giúp AI không bị nhầm giữa Tiếng Trung (Giản thể/Phồn thể) hay Tiếng Ấn (Hindi/Anh)
@@ -250,7 +254,7 @@ class QuickPlannerWorker(QThread):
                         if match_fallback:
                             data.update(json.loads(match_fallback.group(1)))
                 except Exception as e: 
-                    print(f"Lỗi parse JSON Planner: {e}")
+                    logger.info(f"Lỗi parse JSON Planner: {e}")
             
             results.append(data)
             

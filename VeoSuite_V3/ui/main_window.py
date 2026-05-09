@@ -30,12 +30,18 @@ try:
     from ui.admin_tab import AdminTab
 except ImportError:
     # Trường hợp 2: Chạy trực tiếp trong folder ui/ hoặc cấu trúc phẳng
+    # NB: Mỗi import ở Trường hợp 1 PHẢI có dòng tương ứng ở đây, nếu không
+    # khi 1 import bất kỳ ở Trường hợp 1 fail thì fallback chạy nhưng thiếu
+    # symbol → NameError ở `_create_content_stack()` thay vì ImportError
+    # rõ ràng (ví dụ: thiếu `PublisherTab` từng làm app crash trong
+    # bước splash "Preparing User Interface...").
     try:
         from styles import DARK_THEME_STYLESHEET
         from widgets.radar_tab import RadarTab
         from widgets.content_tab import ContentTab
         from widgets.media_tab import MediaTab
         from widgets.editor_tab import EditorTab
+        from widgets.publisher_tab import PublisherTab
         from admin_tab import AdminTab
     except ImportError as e:
         # Trường hợp 3: Debug chi tiết lỗi nếu vẫn không tìm thấy

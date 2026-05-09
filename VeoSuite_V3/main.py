@@ -3,27 +3,26 @@ VEO SUITE V3.2 — Main Entry Point
 ===================================
 File: main.py
 """
-import sys
-import os
-import time
+
 import logging
+import os
+import sys
 from pathlib import Path
 
 # Fix Unicode output trên Windows (cp1252 không hỗ trợ emoji)
-if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Thêm thư mục gốc vào Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from PyQt6.QtWidgets import QApplication, QSplashScreen, QProgressBar, QLabel, QVBoxLayout, QWidget
-from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QPixmap, QColor
-
 # Import nội bộ
 from database.db_manager import DatabaseManager
-from services.config_manager import ConfigManager, LOGO_PATH, LOGS_DIR
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer
+from PyQt6.QtGui import QColor, QPixmap
+from PyQt6.QtWidgets import QApplication, QLabel, QProgressBar, QSplashScreen, QVBoxLayout
+from services.config_manager import LOGO_PATH, LOGS_DIR, ConfigManager
 from ui.main_window import MainWindow
 from ui.styles import DARK_THEME_STYLESHEET
 
@@ -32,19 +31,35 @@ from ui.styles import DARK_THEME_STYLESHEET
 # LOGGING SETUP
 # ============================================================================
 def setup_logging():
-    """Cấu hình logging cho toàn app."""
+    """Cấu hình logging cho toàn app với rotating file (10 MB × 5 file)."""
+    from logging.handlers import RotatingFileHandler
+
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     log_file = LOGS_DIR / "veo_suite.log"
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    fmt = logging.Formatter(
+        "%(asctime)s [%(name)s] %(levelname)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            logging.FileHandler(str(log_file), encoding="utf-8"),
-            logging.StreamHandler(sys.stdout),
-        ]
     )
+
+    file_handler = RotatingFileHandler(
+        str(log_file),
+        maxBytes=10 * 1024 * 1024,  # 10 MB / file
+        backupCount=5,  # giữ 5 file cũ
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(fmt)
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(fmt)
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    # Tránh tích luỹ handler khi setup_logging được gọi lại
+    for h in list(root.handlers):
+        root.removeHandler(h)
+    root.addHandler(file_handler)
+    root.addHandler(stream_handler)
 
 
 # ============================================================================
@@ -67,9 +82,7 @@ class ModernSplashScreen(QSplashScreen):
             lbl_logo = QLabel()
             lbl_logo.setPixmap(
                 QPixmap(str(logo_path)).scaled(
-                    120, 120,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
+                    120, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
                 )
             )
             lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -140,12 +153,9 @@ class ModernSplashScreen(QSplashScreen):
 # ============================================================================
 def check_dependencies() -> bool:
     """Kiểm tra thư viện bắt buộc."""
-    try:
-        import PyQt6
-        import sqlite3
-        return True
-    except ImportError:
-        return False
+    from importlib.util import find_spec
+
+    return all(find_spec(mod) is not None for mod in ("PyQt6", "sqlite3"))
 
 
 def initialize_database() -> DatabaseManager:
@@ -160,9 +170,7 @@ def initialize_database() -> DatabaseManager:
 
 def create_application() -> QApplication:
     """Tạo QApplication."""
-    QApplication.setHighDpiScaleFactorRoundingPolicy(
-        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
-    )
+    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
     app.setApplicationName("VEO SUITE")
     app.setStyle("Fusion")
@@ -182,45 +190,65 @@ def main() -> int:
     # 1. Config (tạo thư mục, load .env)
     ConfigManager()
 
-    # 2. App + Splash
+    # 2. App + Splash (non-blocking — splash steps run via QTimer
+    #    instead of time.sleep() so the GUI thread stays responsive).
     app = create_application()
     splash = ModernSplashScreen("VEO SUITE", "3.2.0", str(LOGO_PATH))
     splash.show()
-
-    # 3. Loading steps
-    splash.update_status("Checking system requirements...", 10)
-    time.sleep(0.2)
 
     if not check_dependencies():
         logger.critical("Missing dependencies!")
         return 1
 
-    splash.update_status("Loading core modules...", 30)
-    time.sleep(0.2)
+    state: dict = {"db": None, "main_window": None, "exit_code": 0}
 
-    splash.update_status("Connecting to Database...", 50)
-    db = initialize_database()
+    # Mỗi step là (label, percent, action) — action có thể là None.
+    steps = [
+        ("Checking system requirements...", 10, None),
+        ("Loading core modules...", 30, None),
+        ("Connecting to Database...", 50, lambda: state.update(db=initialize_database())),
+        ("Verifying integrity...", 75, None),
+        ("Preparing User Interface...", 90, lambda: state.update(main_window=MainWindow())),
+        ("Ready to launch!", 100, None),
+    ]
 
-    splash.update_status("Verifying integrity...", 75)
-    time.sleep(0.3)
+    step_iter = iter(steps)
 
-    splash.update_status("Preparing User Interface...", 90)
-    time.sleep(0.2)
+    def run_next_step() -> None:
+        try:
+            label, pct, action = next(step_iter)
+        except StopIteration:
+            # Tất cả steps xong → show window + fade splash.
+            try:
+                window = state["main_window"]
+                if window is None:
+                    raise RuntimeError("MainWindow was not initialized")
+                window.show()
+                splash.fade_out()
+                logger.info("App launched successfully")
+            except Exception as exc:
+                logger.critical("Launch failed: %s", exc, exc_info=True)
+                state["exit_code"] = 1
+                app.quit()
+            return
 
-    try:
-        main_window = MainWindow()
-        splash.update_status("Ready to launch!", 100)
-        time.sleep(0.2)
+        splash.update_status(label, pct)
+        if action is not None:
+            try:
+                action()
+            except Exception as exc:
+                logger.critical("Splash step '%s' failed: %s", label, exc, exc_info=True)
+                state["exit_code"] = 1
+                app.quit()
+                return
 
-        main_window.show()
-        splash.fade_out()
+        # 200ms giữa các step — non-blocking (không chặn event loop).
+        QTimer.singleShot(200, run_next_step)
 
-        logger.info("App launched successfully")
-        return app.exec()
+    QTimer.singleShot(0, run_next_step)
 
-    except Exception as e:
-        logger.critical(f"Launch failed: {e}", exc_info=True)
-        return 1
+    rc = app.exec()
+    return state["exit_code"] or rc
 
 
 if __name__ == "__main__":
