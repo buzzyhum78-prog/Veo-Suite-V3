@@ -241,13 +241,20 @@ class FFmpegPresets:
         resolution: str = "1920x1080",
         ken_burns_filter: str | None = None,
     ) -> list[str]:
-        """Dựng slideshow từ N ảnh + 1 audio."""
+        """Dựng slideshow từ N ảnh + 1 audio.
+
+        Đảm bảo zoompan output đúng ``resolution``: filter này mặc định trả
+        ra 1280x720 nếu không có ``s=WxH``, nên ta thêm ``:s={W}x{H}`` vào
+        ken-burns mặc định và thêm ``scale={W}:{H}`` cuối chain để bảo hiểm
+        khi caller truyền ``ken_burns_filter`` riêng.
+        """
         if not images:
             raise ValueError("slideshow: images is empty")
         width, height = cls.parse_resolution(resolution)
 
         kb = ken_burns_filter or (
-            "zoompan=z='min(zoom+0.0015,1.5)':d=700:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+            f"zoompan=z='min(zoom+0.0015,1.5)':d=700:"
+            f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}"
         )
 
         builder = FFmpegCommandBuilder(ffmpeg=ffmpeg)
@@ -255,11 +262,12 @@ class FFmpegPresets:
             builder.add_input(img, loop=True, duration=duration_per_image)
         builder.add_input(audio_path)
 
-        # filter_complex: scale+pad+kenburns mỗi ảnh, rồi concat
+        # filter_complex: scale+pad+kenburns mỗi ảnh, rồi concat. Thêm scale
+        # cuối để chống case caller truyền custom kenburns ko set kích thước.
         per_image_chain = (
             f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
             f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,"
-            f"{kb},setsar=1"
+            f"{kb},scale={width}:{height},setsar=1"
         )
         per_image = [f"[{i}:v]{per_image_chain}[v{i}]" for i in range(len(images))]
         concat_inputs = "".join(f"[v{i}]" for i in range(len(images)))
@@ -318,16 +326,29 @@ class FFmpegPresets:
         volume: float = 0.15,
         ducking: bool = True,
     ) -> list[str]:
-        """Ghép nhạc nền vào video, có/không sidechain ducking."""
+        """Ghép nhạc nền vào video, có/không sidechain ducking.
+
+        Lưu ý kỹ thuật: FFmpeg cấm dùng ``-af`` kèm ``-filter_complex`` cho
+        cùng 1 stream output. Trước đây preset này gọi cả hai (afade qua
+        ``-af`` + amix qua ``-filter_complex[aout]``) khiến lệnh fail với
+        ``-vf/-af/-filter and -filter_complex cannot be used together``.
+        Fix: nhúng afade vào trong filter_complex luôn, không gọi
+        ``audio_filter()`` nữa.
+        """
+        # Fade-in 0.1s ngay đầu mix; fade-out yêu cầu biết duration nên
+        # ta bỏ qua ở đây (caller có thể probe video rồi tự thêm afade).
         if ducking:
             a_filter = (
                 f"[1:a]volume={volume},"
                 f"sidechaincompress=threshold=0.1:ratio=4:attack=20:release=1000[bg];"
-                f"[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+                f"[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2,"
+                f"afade=t=in:d=0.1[aout]"
             )
         else:
             a_filter = (
-                f"[1:a]volume={volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+                f"[1:a]volume={volume}[bg];"
+                f"[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2,"
+                f"afade=t=in:d=0.1[aout]"
             )
         builder = FFmpegCommandBuilder(ffmpeg=ffmpeg)
         builder.add_input(video_path)
@@ -335,7 +356,6 @@ class FFmpegPresets:
         builder.filter_complex(a_filter)
         builder.map("0:v")
         builder.map("[aout]")
-        builder.audio_filter("afade=t=in:d=0.1,afade=t=out:d=0.1")
         builder.vcodec("copy", pix_fmt=None)
         builder.acodec("aac", bitrate="192k")
         builder.output(output_path)
