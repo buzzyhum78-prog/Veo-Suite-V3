@@ -11,7 +11,17 @@ PyQt6>=6.5,<6.9
 
 # --- AI & LLM ---
 google-generativeai>=0.8,<1.0
+# Newer GenAI SDK that exposes `from google import genai` (used by media_tab.py).
+# Without this the Media tab transitively crashes the entire app at startup.
+google-genai>=0.3,<2.0
 requests>=2.31,<3.0
+
+# --- Publisher (YouTube Data API v3) ---
+# Required by modules/publisher/platforms/youtube_api.py and transitively by
+# ui/widgets/publisher_tab.py. Missing either of these blocks the primary
+# import chain in ui/main_window.py and the app fails to boot.
+google-auth-oauthlib>=1.2,<2.0
+google-api-python-client>=2.100,<3.0
 
 # --- Voice / TTS ---
 edge-tts>=6.1,<8.0

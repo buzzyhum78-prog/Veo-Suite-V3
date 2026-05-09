@@ -908,3 +908,77 @@ class TestT8YoutubeWorkerTypo:
         count = len(re.findall(r"\battempts_with_current_config\b", src))
         # declaration + while condition + the rename (formerly buggy line) + at least one increment elsewhere
         assert count >= 3, f"Expected ≥3 references, got {count}"
+
+
+# ===========================================================================
+# T9 — D3 fix (ui/main_window.py fallback ImportError block must mirror
+#      the primary import block, otherwise a transitive dependency missing
+#      in the primary chain causes NameError at MainWindow construction
+#      instead of a clean ImportError.
+# ===========================================================================
+class TestT9MainWindowImportFallback:
+    SRC_PATH = Path(__file__).resolve().parents[1] / "VeoSuite_V3" / "ui" / "main_window.py"
+
+    @staticmethod
+    def _imported_names(src: str) -> tuple[set[str], set[str]]:
+        """Return (primary_names, fallback_names) extracted from the two import
+        blocks in main_window.py. Names are the trailing identifier of each
+        ``from X.Y import Z`` line — what the rest of the module references.
+        """
+        import ast
+
+        tree = ast.parse(src)
+        primary: set[str] = set()
+        fallback: set[str] = set()
+        # The two blocks live inside the module-level Try → ExceptHandler → Try.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Try):
+                # Block A: imports inside the outer Try.body (Trường hợp 1).
+                for stmt in node.body:
+                    if isinstance(stmt, ast.ImportFrom):
+                        for alias in stmt.names:
+                            primary.add(alias.asname or alias.name)
+                # Block B: imports inside ExceptHandler → inner Try.body (Trường hợp 2).
+                for handler in node.handlers:
+                    for sub in ast.walk(ast.Module(body=handler.body, type_ignores=[])):
+                        if isinstance(sub, ast.ImportFrom):
+                            for alias in sub.names:
+                                fallback.add(alias.asname or alias.name)
+                break  # only inspect the first outer Try at module level
+        return primary, fallback
+
+    def test_t9_1_file_parses(self):
+        import ast
+
+        ast.parse(self.SRC_PATH.read_text())
+
+    def test_t9_2_publisher_tab_in_fallback(self):
+        """The exact regression: ``PublisherTab`` is imported in the primary
+        block but used to be missing from the fallback block, so when the
+        publisher's transitive ``google_auth_oauthlib`` import failed the
+        fallback ran and the app died at ``self.publisher_tab = PublisherTab()``
+        with NameError.
+        """
+        src = self.SRC_PATH.read_text()
+        primary, fallback = self._imported_names(src)
+        assert "PublisherTab" in primary, "primary import block lost PublisherTab"
+        assert "PublisherTab" in fallback, (
+            "fallback ImportError block is missing `from widgets.publisher_tab "
+            "import PublisherTab` — this regression made the splash crash with "
+            "NameError on real desktops where google_auth_oauthlib wasn't installed."
+        )
+
+    def test_t9_3_fallback_mirrors_primary(self):
+        """Stronger invariant: every name imported in the primary block must
+        also appear in the fallback block. (The fallback may import strict
+        super-set of names, e.g. extra debug imports — that's fine.)
+        """
+        src = self.SRC_PATH.read_text()
+        primary, fallback = self._imported_names(src)
+        missing = primary - fallback
+        assert not missing, (
+            f"fallback ImportError block in main_window.py is missing "
+            f"{sorted(missing)} that the primary block imports. Any of these "
+            f"will become a NameError at MainWindow.__init__ time when a "
+            f"transitive dep failure pushes execution into the fallback."
+        )
