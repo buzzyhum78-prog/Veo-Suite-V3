@@ -10,7 +10,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QDateTime, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
 
-from ui.widgets.ops_tab import OpsTab
+# NOTE: OpsTab is intentionally NOT imported here. The Ops Center belongs to
+# the AdminTab (Quản Trị) sub-tab tree (`ui/admin_tab.py:setup_ops_tab` adds
+# `OpsTab()` as the "🛡️ An Ninh & VPS" sub-tab). Re-introducing it inside
+# PublisherTab causes the same widget to render twice with two competing
+# inline stylesheets, which the user perceives as the app "jumping into
+# another UI" when navigating between Phát Hành and Quản Trị. See PR-5b1.
 from modules.publisher.account_manager import PublisherAccountManager
 from modules.publisher.platforms import AVAILABLE_PLATFORMS, get_platform_instance
 from modules.publisher.constants import get_next_golden_hour
@@ -163,11 +168,9 @@ class PublisherTab(QWidget):
         self.tabs.addTab(self._build_account_tab(), "🔑 Quản Lý Tài Khoản (API)")
         self.tabs.addTab(self._build_upload_config_tab(), "⚙️ Cấu Hình Phát Hành")
         self.tabs.addTab(self._build_scheduler_tab(), "📅 Hàng Đợi & Lên Lịch")
-        
-        # Tích hợp OpsTab
-        self.ops_tab = OpsTab()
-        self.tabs.addTab(self.ops_tab, "🛡️ Ops Center (Quản Trị Vận Hành)")
-        
+
+        # OpsTab is provided by AdminTab (Quản Trị → "🛡️ An Ninh & VPS"). It is
+        # intentionally NOT instantiated here — see import block above and PR-5b1.
         layout.addWidget(self.tabs)
 
     def _build_account_tab(self):

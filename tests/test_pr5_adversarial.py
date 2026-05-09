@@ -11,6 +11,7 @@ Run with::
 
 from __future__ import annotations
 
+import ast
 import logging
 import os
 import re
@@ -981,4 +982,132 @@ class TestT9MainWindowImportFallback:
             f"{sorted(missing)} that the primary block imports. Any of these "
             f"will become a NameError at MainWindow.__init__ time when a "
             f"transitive dep failure pushes execution into the fallback."
+        )
+
+
+# ===========================================================================
+# T10 — PR-5b1: OpsTab is owned by AdminTab and AdminTab ONLY. Re-introducing
+# OpsTab in PublisherTab causes the same widget to render twice with two
+# competing inline stylesheets, which the user perceives as the app
+# "jumping into another UI" when navigating between Phát Hành (Publisher)
+# and Quản Trị (Admin). This invariant is structural and cheap to enforce
+# with AST so future drift fails CI immediately.
+# ===========================================================================
+class TestT10OpsTabSingleOwner:
+    PUBLISHER_TAB = (
+        Path(__file__).resolve().parents[1] / "VeoSuite_V3" / "ui" / "widgets" / "publisher_tab.py"
+    )
+    ADMIN_TAB = Path(__file__).resolve().parents[1] / "VeoSuite_V3" / "ui" / "admin_tab.py"
+
+    @staticmethod
+    def _all_calls(src: str) -> list:
+        import ast
+
+        tree = ast.parse(src)
+        return [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+
+    @staticmethod
+    def _all_imported_names(src: str) -> set[str]:
+        import ast
+
+        tree = ast.parse(src)
+        names: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    names.add(alias.asname or alias.name)
+        return names
+
+    def test_t10_1_publisher_tab_does_not_import_ops_tab(self):
+        """publisher_tab.py must NOT import OpsTab anymore. The previous
+        ``from ui.widgets.ops_tab import OpsTab`` was the source of the
+        double-render bug; PR-5b1 removed it.
+        """
+        src = self.PUBLISHER_TAB.read_text(encoding="utf-8")
+        names = self._all_imported_names(src)
+        assert "OpsTab" not in names, (
+            "publisher_tab.py is importing OpsTab again. OpsTab is exclusively "
+            'owned by AdminTab (Quản Trị → "🛡️ An Ninh & VPS"). '
+            "Re-importing it here re-introduces the dual-render bug PR-5b1 fixed."
+        )
+
+    def test_t10_2_publisher_tab_does_not_instantiate_ops_tab(self):
+        """publisher_tab.py source must not contain ``OpsTab(`` anywhere
+        (covers cases where someone imports it under an alias and then
+        constructs it). AST walk on call nodes catches both shapes.
+        """
+        src = self.PUBLISHER_TAB.read_text(encoding="utf-8")
+        for call in self._all_calls(src):
+            func = call.func
+            name = None
+            if isinstance(func, ast.Name):
+                name = func.id
+            elif isinstance(func, ast.Attribute):
+                name = func.attr
+            if name == "OpsTab":
+                raise AssertionError(
+                    "publisher_tab.py instantiates OpsTab. OpsTab is owned by "
+                    "AdminTab. Remove the construction or risk the dual-UI "
+                    "stylesheet drift PR-5b1 was created to fix."
+                )
+
+    def test_t10_3_admin_tab_still_owns_ops_tab(self):
+        """admin_tab.py must still import and instantiate OpsTab — that's the
+        sole owner. If this regresses, Ops Center disappears from the app
+        entirely.
+        """
+        src = self.ADMIN_TAB.read_text(encoding="utf-8")
+        names = self._all_imported_names(src)
+        assert "OpsTab" in names, (
+            "admin_tab.py no longer imports OpsTab. AdminTab is the sole owner "
+            "of Ops Center; if this regresses Ops Center is unreachable in the app."
+        )
+        instantiations = [
+            c
+            for c in self._all_calls(src)
+            if (isinstance(c.func, ast.Name) and c.func.id == "OpsTab")
+            or (isinstance(c.func, ast.Attribute) and c.func.attr == "OpsTab")
+        ]
+        assert instantiations, (
+            "admin_tab.py imports OpsTab but never constructs it. Expected "
+            "exactly one ``OpsTab()`` call in setup_ops_tab/init_ui."
+        )
+        assert len(instantiations) == 1, (
+            f"admin_tab.py constructs OpsTab {len(instantiations)} times; "
+            f"expected exactly one. Multiple instances re-introduce the same "
+            f"dual-render symptom PR-5b1 was created to fix."
+        )
+
+    def test_t10_4_global_single_owner(self):
+        """Whole-tree sweep: across the entire VeoSuite_V3 codebase, the only
+        file allowed to construct OpsTab is admin_tab.py. Test files are
+        exempt because they exercise OpsTab in isolation.
+        """
+        import ast as _ast
+
+        root = Path(__file__).resolve().parents[1] / "VeoSuite_V3"
+        offenders: list[str] = []
+        for py in root.rglob("*.py"):
+            if py.name == "admin_tab.py":
+                continue
+            if py.name == "ops_tab.py":
+                # The class definition itself, not a construction site.
+                continue
+            try:
+                tree = _ast.parse(py.read_text(encoding="utf-8"))
+            except SyntaxError:
+                # Legacy files outside ruff scope — let other tests catch parse errors.
+                continue
+            for call in _ast.walk(tree):
+                if not isinstance(call, _ast.Call):
+                    continue
+                func = call.func
+                if (isinstance(func, _ast.Name) and func.id == "OpsTab") or (
+                    isinstance(func, _ast.Attribute) and func.attr == "OpsTab"
+                ):
+                    offenders.append(str(py.relative_to(root)))
+                    break
+        assert not offenders, (
+            f"Files outside admin_tab.py construct OpsTab: {offenders}. "
+            f"OpsTab must be a singleton owned by AdminTab — see PR-5b1."
         )
