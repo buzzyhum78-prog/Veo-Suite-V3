@@ -42,6 +42,42 @@ from modules.radar.youtube_worker import RealYouTubeWorker
 from modules.radar.planner_worker import QuickPlannerWorker
 from modules.radar.spy_worker import SpyMetadataWorker
 
+# PR-5d: pure helpers extracted from this file. Behaviour preserved
+# verbatim; tests live in tests/test_pr5d_radar_refactor.py::TestTradar*.
+from modules.radar.history_store import (
+    HISTORY_PATH as _PURE_HISTORY_PATH,
+)
+from modules.radar.history_store import (
+    check_topic_history as _pure_check_topic_history,
+)
+from modules.radar.history_store import (
+    load_history as _pure_load_history,
+)
+from modules.radar.history_store import (
+    record_topic_history as _pure_record_topic_history,
+)
+from modules.radar.history_store import (
+    save_history as _pure_save_history,
+)
+from modules.radar.intent_strategy import (
+    classify_intent as _pure_classify_intent,
+)
+from modules.radar.intent_strategy import (
+    classify_topic_strictness as _pure_classify_topic_strictness,
+)
+from modules.radar.intent_strategy import (
+    rule_for_strictness as _pure_rule_for_strictness,
+)
+from modules.radar.text_normalizers import (
+    clean_input_string as _pure_clean_input_string,
+)
+from modules.radar.text_normalizers import (
+    clean_staging_topic as _pure_clean_staging_topic,
+)
+from modules.radar.text_normalizers import (
+    clean_topic_name as _pure_clean_topic_name,
+)
+
 class RadarTab(QWidget):
     # --- [BƯỚC 1] KHAI BÁO SIGNAL TẠI ĐÂY ---
     log_signal = pyqtSignal(str)
@@ -2277,15 +2313,8 @@ class RadarTab(QWidget):
         #QTimer.singleShot(200, self._real_update_prompt) # Delay xíu để combo cập nhật xong
 
     def _real_update_prompt(self):
-        # Hàm làm sạch: Bỏ emoji, bỏ ngoặc đơn, chỉ lấy tên tiếng Anh gốc
-        def clean_input_string(text):
-            # Tách theo dấu ( hoặc dấu - để lấy phần đầu (VD: "Ocean & Water" từ "🌊 Ocean & Water (Sóng nước)")
-            if "(" in text: text = text.split("(")[0]
-            if "---" in text: return "" # Bỏ qua các dòng tiêu đề format
-            # Xóa emoji và ký tự lạ
-            text = re.sub(r'[^\w\s&,]', '', text) 
-            return text.strip()
-        
+        # Bộ làm sạch + bảng intent + bảng strict/semi đã được lift sang
+        # modules/radar/{text_normalizers,intent_strategy}.py trong PR-5d.
         # 1. Lấy list và LÀM SẠCH DATA ngay lập tức
         raw_countries = self.cb_country.get_checked_items()
         clean_countries = [c.split("~")[0].strip() for c in raw_countries] # Cắt bỏ phần tiền
@@ -2303,7 +2332,7 @@ class RadarTab(QWidget):
         raw_topics = self.cb_topic.get_checked_items()
         clean_topics_list = []
         for t in raw_topics:
-            cleaned = clean_input_string(t)
+            cleaned = _pure_clean_input_string(t)
             if cleaned: clean_topics_list.append(cleaned)
             
         t_str = ", ".join(clean_topics_list) if clean_topics_list else "General"
@@ -2314,60 +2343,16 @@ class RadarTab(QWidget):
         p_str = ", ".join(raw_platforms) if raw_platforms else "Youtube Long"
 
         # --- 3. MA TRẬN INTENT & CHIẾN THUẬT FACELESS (FULL OPTIMIZED) ---
-        # Map này định hướng AI viết nội dung chuẩn Faceless cho từng ngách
-        intent_hint = "Focus on: High Retention, Clickable Viral concepts."
-        
-        # Kiểm tra từng từ khóa trong t_str để gán Intent
-        ts = t_str.lower()
-        if "rain" in ts or "ocean" in ts or "healing" in ts or "meditation" in ts:
-            intent_hint = "🎯 STRATEGY: Sleep Aid, Insomnia Relief, Focus Study, Stress Reduction (ASMR/Ambience)."
-        elif "space" in ts or "universe" in ts or "geography" in ts:
-            intent_hint = "🎯 STRATEGY: Cosmic Horror, Scale Comparisons, Future Paradoxes, 'Mind-blowing Facts'."
-        elif "history" in ts or "ancient" in ts:
-            intent_hint = "🎯 STRATEGY: Forgotten Empires, Dark Secrets, 'What they didn't teach you in school', Timeline breakdowns."
-        elif "animal" in ts or "cat" in ts or "dog" in ts:
-            intent_hint = "🎯 STRATEGY: Cute Aggression, Survival Instincts, Rare Behaviors, 'Try not to laugh', Heartwarming rescues."
-        elif "scary" in ts or "crime" in ts or "mystery" in ts:
-            intent_hint = "🎯 STRATEGY: High Curiosity Gap, Urban Legends, Unsolved Mysteries, Psychological Thriller vibes."
-        elif "tech" in ts or "ai" in ts or "coding" in ts or "inventions" in ts:
-            intent_hint = "🎯 STRATEGY: Productivity Hacks, 'Replace your job', Future Predictions, Tools You Need."
-        elif "finance" in ts or "crypto" in ts:
-            intent_hint = "🎯 STRATEGY: Wealth Mindset, Passive Income Realities, Market Crash Predictions, 'How rich people think'."
-        elif "quote" in ts or "stoic" in ts:
-            intent_hint = "🎯 STRATEGY: Life Lessons, Sigma Grindset, Mental Toughness, Philosophy for Modern Life."
+        # Đã lift sang modules/radar/intent_strategy.py.
+        intent_hint = _pure_classify_intent(t_str)
 
         # 4. XÁC ĐỊNH LUẬT CHO TỪNG NHÓM CHỦ ĐỀ
-        extra_rule = ""
-        
-        # NHÓM 1: BẮT BUỘC PHẢI THẬT (Tin tức, Lịch sử, Tài chính, Sức khỏe...)
-        strict_topics = ["News", "Tin tức", "History", "Lịch sử", "Finance", "Tài chính", "Health", "Sức khỏe", "Facts", "Sự thật", "Tech", "Công nghệ", "Real Estate", "Bất động sản", "Science", "Khoa học", "Crime", "Vụ án"]
-        
-        # NHÓM 2: CẦN THẬT NHƯNG ĐƯỢC CẢM XÚC (Sách, Podcast, Vlog)
-        semi_topics = ["Book", "Sách", "Podcast", "Tâm sự", "Cooking", "Nấu ăn", "Vlog", "Du lịch"]
-        
-        # Kiểm tra xem chủ đề hiện tại thuộc nhóm nào
-        is_strict = any(k in t_str for k in strict_topics)
-        is_semi = any(k in t_str for k in semi_topics)
-        
-        if is_strict:
-            extra_rule = (
-                "🚨 STRICT TRUTH POLICY: The content MUST be based on REAL EVENTS, HISTORICAL FACTS, or VERIFIED DATA.\n"
-                "- DO NOT invent fake news or fake historical events.\n"
-                "- For 'Crime/Vụ án': Must be a TRUE CRIME case.\n"
-                "- For 'Science/Finance': Must be scientifically/financially accurate.\n"
-            )
-        elif is_semi:
-            extra_rule = (
-                "🌟 AUTHENTICITY POLICY: Content should be based on real experiences or books, but you can focus on EMOTIONAL VALUE and PERSONAL PERSPECTIVE.\n"
-                "- Titles should trigger curiosity but remain honest to the source material.\n"
-            )
-        else:
-            # NHÓM 3: GIẢI TRÍ (Ma, Hài, Kids...) -> Thoải mái sáng tạo
-            extra_rule = (
-                "✨ CREATIVE FREEDOM: Focus purely on ENTERTAINMENT VALUE, VIRALITY, and EMOTIONAL HOOKS.\n"
-                "- For 'Ghost/Horror': You can create fictional scary stories (Creepypasta style).\n"
-                "- For 'Kids/Funny': Focus on fun, engagement, and retention.\n"
-            )
+        # NHÓM 1 (STRICT) -> News/History/Finance/Health/Tech/Real Estate/Science/Crime
+        # NHÓM 2 (SEMI)   -> Book/Podcast/Cooking/Vlog
+        # NHÓM 3 (FREE)   -> còn lại (giải trí: ma, hài, kids, ...)
+        extra_rule = _pure_rule_for_strictness(
+            _pure_classify_topic_strictness(t_str)
+        )
         
         # Prompt Target Template (QUAN TRỌNG: Yêu cầu AI dùng ngôn ngữ bản địa)
         template = (
@@ -3018,48 +3003,15 @@ class RadarTab(QWidget):
 
     # [MỚI] Hàm kiểm tra lịch sử sản xuất (Chống trùng lặp)
     def check_production_history(self, topic, country):
-        """
-        Trả về: (Trùng hay không, Ngày tạo gần nhất)
-        """
-        path = "VEO_DB/production_log.json"
-        if not os.path.exists(path): return False, None
-        
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                history = json.load(f)
-            
-            # Tạo key định danh: Topic + Country
-            # VD: "Rain on Roof_Vietnam"
-            key = f"{topic}_{country}"
-            
-            if key in history:
-                return True, history[key]['date']
-        except: pass
-        return False, None
+        """Trả về: (Trùng hay không, Ngày tạo gần nhất)."""
+        history = _pure_load_history(_PURE_HISTORY_PATH)
+        return _pure_check_topic_history(history, topic, country)
 
     # [MỚI] Hàm ghi lại lịch sử sản xuất
     def log_production_history(self, topic, country):
-        path = "VEO_DB/production_log.json"
-        history = {}
-        
-        # Load cũ
-        if os.path.exists(path):
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    history = json.load(f)
-            except: pass
-            
-        # Ghi mới
-        import datetime
-        key = f"{topic}_{country}"
-        history[key] = {
-            "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "status": "Created"
-        }
-        
-        # Lưu lại
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=4)
+        history = _pure_load_history(_PURE_HISTORY_PATH)
+        _pure_record_topic_history(history, topic, country)
+        _pure_save_history(history, _PURE_HISTORY_PATH)
     
     def transfer_to_factory(self):
         # 1. Kiểm tra xem đã có dữ liệu Spy chưa
@@ -3258,22 +3210,16 @@ class RadarTab(QWidget):
     # [NÚT 2] CHUYỂN TỪ BẢNG STAGING SANG TAB 4
     def transfer_staging_to_factory(self):
         if self.tbl_staging.rowCount() == 0: return
-        
+
         payload_list = []
-        import re
-        
-        def final_clean(t):
-            if not t: return "General"
-            t = t.split('(')[0].strip()
-            t = re.sub(r'^[^\w\s&,]*', '', t).strip()
-            return t
+        # final_clean nested helper -> modules.radar.text_normalizers.clean_staging_topic
 
         for i in range(self.tbl_staging.rowCount()):
             if self.tbl_staging.item(i, 0).checkState() == Qt.CheckState.Checked:
                 full_data = self.staging_data_full[i]
-                
+
                 niche_on_table = self.tbl_staging.item(i, 3).text()
-                clean_niche = final_clean(niche_on_table)
+                clean_niche = _pure_clean_staging_topic(niche_on_table)
                 key_vua_on_table = self.tbl_staging.item(i, 4).text()
                 qty_on_table = int(self.tbl_staging.item(i, 7).text())
                 visual_style = self.tbl_staging.item(i, 8).text()
@@ -3375,17 +3321,9 @@ class RadarTab(QWidget):
     def run_channel_planning(self):
         # 1. Lấy thông tin
         raw_niche_text = self.cb_batch_niche.currentText()
-        
-        # [FIX QUAN TRỌNG] Chuẩn hóa Topic về tiếng Anh (Xóa Emoji & Việt)
-        def clean_topic_name(text):
-            if not text or "---" in text: return "General"
-            res = text.split('(')[0].strip()
-            # 2. Xóa Emoji (Bằng cách giữ lại ký tự ASCII + dấu &)
-            # Hoặc đơn giản hơn: xóa các ký tự đặc biệt ở đầu
-            res = re.sub(r'^[^\w\s]*', '', res).strip()
-            return res
 
-        target_niche = clean_topic_name(raw_niche_text)
+        # clean_topic_name nested helper -> modules.radar.text_normalizers.clean_topic_name
+        target_niche = _pure_clean_topic_name(raw_niche_text)
 
         # [FIX BUG] Lấy danh sách nước ĐÚNG CÁCH
         target_langs_full = self.cb_batch_lang.get_checked_items()
