@@ -23,6 +23,8 @@ from services.ai_factory import AIFactory
 from services.render_service import RenderService
 from services.thumbnail_composer import ThumbnailComposer
 
+from ui.style_kit import apply_kind, apply_accent  # PR-5e: dynamic-property style helpers
+
 VOICE_CONFIG_FILE = "VEO_DB/voice_engine_config.json"
 
 
@@ -144,7 +146,7 @@ class MediaTab(QWidget):
         # TẦNG 1: THANH CÔNG CỤ (ACTION BAR)
         # ============================================================
         action_bar = QFrame()
-        action_bar.setStyleSheet("background: #252526; border-bottom: 1px solid #333;")
+        action_bar.setObjectName("mediaActionBar")  # PR-5e: was inline bg #252526 + border-bottom
         action_bar.setFixedHeight(50)
         l_action = QHBoxLayout(action_bar)
         l_action.setContentsMargins(10, 5, 10, 5)
@@ -169,25 +171,25 @@ class MediaTab(QWidget):
         # Nhóm Xử Lý (Giữa)
         l_action.addStretch()
         self.btn_fix = QPushButton("🧠 Auto-Fix Missing")
-        self.btn_fix.setStyleSheet("color: #f1c40f; border: 1px solid #555; background: #333;")
+        apply_kind(self.btn_fix, "muted")  # PR-5e: was inline #f1c40f/#555/#333
         l_action.addWidget(self.btn_fix)
         l_action.addStretch()
 
         # --- [THÊM NÚT NÀY] ---
         self.btn_auto_brand = QPushButton("🎨 Auto-Brand All")
         self.btn_auto_brand.setToolTip("Tự động vẽ Logo & Banner cho các kênh chưa có")
-        self.btn_auto_brand.setStyleSheet("background: #8e44ad; color: white; font-weight: bold;")
+        apply_kind(self.btn_auto_brand, "ai_magic")  # PR-5e: was inline #8e44ad
         self.btn_auto_brand.clicked.connect(self.action_batch_generate_brand)
         l_action.addWidget(self.btn_auto_brand)
         # ----------------------
 
         # Nhóm Vận Hành (Phải)
         self.btn_batch = QPushButton("⚡ TẠO FULL (Kênh)")
-        self.btn_batch.setStyleSheet("background: #27ae60; color: white; font-weight: bold; padding: 5px 15px; border-radius: 4px;")
+        apply_kind(self.btn_batch, "success")  # PR-5e: was inline #27ae60
         self.btn_batch.clicked.connect(lambda: self.batch_action("full_run"))
         
         self.btn_stop = QPushButton("⛔ STOP")
-        self.btn_stop.setStyleSheet("background: #c0392b; color: white; font-weight: bold; padding: 5px 15px; border-radius: 4px;")
+        apply_kind(self.btn_stop, "danger")  # PR-5e: was inline #c0392b
         self.btn_stop.clicked.connect(self.action_stop_all)
         
         l_action.addWidget(self.btn_batch)
@@ -243,7 +245,7 @@ class MediaTab(QWidget):
         # --- TẦNG 3: XƯỞNG SẢN XUẤT (WORKBENCH) ---
         scroll_bench = QScrollArea()
         scroll_bench.setWidgetResizable(True)
-        scroll_bench.setStyleSheet("QScrollArea {border: none; background: #1e1e1e;}")
+        scroll_bench.setObjectName("mediaBenchScroll")  # PR-5e: was inline border:none + bg #1e1e1e
         
         self.bench_widget = QWidget()
         self.bench_layout = QVBoxLayout(self.bench_widget)
@@ -267,12 +269,12 @@ class MediaTab(QWidget):
         
         btn_send_editor = QPushButton("🚀 CHUYỂN SANG DỰNG PHIM (VEO EDITOR)")
         btn_send_editor.setMinimumHeight(50); btn_send_editor.setMinimumWidth(250)
-        btn_send_editor.setStyleSheet("background: #8e44ad; color: white; font-weight: bold; font-size: 14px; border-radius: 5px;")
+        apply_kind(btn_send_editor, "ai_magic")  # PR-5e: was inline #8e44ad
         btn_send_editor.clicked.connect(self.action_send_to_editor)
         
         btn_export = QPushButton("💾 Xuất ra máy tính (Dựng Premiere)")
         btn_export.setMinimumHeight(50); btn_export.setMinimumWidth(250)
-        btn_export.setStyleSheet("background: #e67e22; color: white; font-weight: bold; font-size: 14px; border-radius: 5px;")
+        apply_kind(btn_export, "warning")  # PR-5e: was inline #e67e22
         btn_export.clicked.connect(self.action_final_export)
         
         footer.addWidget(btn_send_editor)
@@ -300,7 +302,7 @@ class MediaTab(QWidget):
     def setup_command_deck(self):
         """KHỐI CHỈ HUY - TRÁI TIM CỦA HIẾN PHÁP V3.2"""
         grp = QGroupBox("🎛️ TRUNG TÂM CHỈ HUY (COMMAND DECK)")
-        grp.setStyleSheet("QGroupBox {font-weight: bold; color: #f1c40f; border: 1px solid #555; background: #222; margin-top: 10px;}")
+        apply_accent(grp, "amber")  # PR-5e: was inline #f1c40f border
         layout = QHBoxLayout(grp)
         layout.setSpacing(20)
 
@@ -388,12 +390,12 @@ class MediaTab(QWidget):
         btn_demo.clicked.connect(self.action_demo_part)
         
         self.btn_run_single = QPushButton("🎬 TẠO FULL (Video này)")
-        self.btn_run_single.setStyleSheet("background: #d35400; font-weight: bold;")
+        apply_kind(self.btn_run_single, "warning")  # PR-5e: was inline #d35400
         self.btn_run_single.clicked.connect(self.action_full_video_single)
         
         self.btn_render_final = QPushButton("🎥 RENDER VIDEO CUỐI")
         self.btn_render_final.setToolTip("Tự động ghép Voice + Ảnh + Nhạc + Phụ đề → Video hoàn chỉnh (FFmpeg)")
-        self.btn_render_final.setStyleSheet("background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #8e44ad,stop:1 #3498db); font-weight: bold; color: white; padding: 6px;")
+        apply_kind(self.btn_render_final, "ai_magic")  # PR-5e: was inline ai_magic gradient
         self.btn_render_final.clicked.connect(self.action_render_final_video)
         
         h_btn_vid.addWidget(btn_demo)
@@ -496,13 +498,13 @@ class MediaTab(QWidget):
         l2.addLayout(h_pitch)
 
         self.btn_gen_voice = QPushButton("🎙️ TẠO VOICE (Full)")
-        self.btn_gen_voice.setStyleSheet("background: #e67e22; font-weight:bold; padding: 8px;")
+        apply_kind(self.btn_gen_voice, "warning")  # PR-5e: was inline #e67e22
         self.btn_gen_voice.clicked.connect(self.action_single_voice)
         
         # [SỬA LẠI] Thêm self. để điều khiển khóa nút
         self.btn_preview_voice = QPushButton("🎧 Nghe thử 3 câu") 
         self.btn_preview_voice.clicked.connect(self.action_preview_voice)
-        self.btn_preview_voice.setStyleSheet("background: #34495e; border: 1px dashed #7f8c8d;")
+        apply_kind(self.btn_preview_voice, "info")  # PR-5e: was inline #34495e dashed
         
         l2.addWidget(self.btn_preview_voice); l2.addWidget(self.btn_gen_voice); l2.addStretch()
 
@@ -550,13 +552,13 @@ class MediaTab(QWidget):
         # Nút xem Sub
         self.btn_view_sub = QPushButton("👁️ Xem Sub")
         self.btn_view_sub.setToolTip("Xem nội dung file .srt")
-        self.btn_view_sub.setStyleSheet("background: #34495e; padding: 4px; font-size: 11px;")
+        apply_kind(self.btn_view_sub, "info")  # PR-5e: was inline #34495e
         self.btn_view_sub.clicked.connect(self.action_view_subtitle) # Hàm này sẽ viết ở bước 3
         self.btn_view_sub.setEnabled(False)
 
         # [THÊM] Nút mở thư mục lấy file
         self.btn_open_folder = QPushButton("📂 Mở thư mục (Lấy Sub)")
-        self.btn_open_folder.setStyleSheet("background: #34495e; padding: 5px; border: 1px solid #555;")
+        apply_kind(self.btn_open_folder, "info")  # PR-5e: was inline #34495e
         self.btn_open_folder.clicked.connect(self.open_current_folder)
         self.btn_open_folder.setEnabled(False) # Khóa khi chưa có file
 
@@ -679,7 +681,7 @@ class MediaTab(QWidget):
 
         self.btn_find_visual = QPushButton("🖼️ TÌM & TẠO (AUTO)")
         self.btn_find_visual.setToolTip("BƯỚC 2: AI Director sẽ tự động phân tích từng câu thoại và chọn hình ảnh/video phù hợp nhất.")
-        self.btn_find_visual.setStyleSheet("background: #8e44ad; font-weight: bold; padding: 10px;")
+        apply_kind(self.btn_find_visual, "ai_magic")  # PR-5e: was inline #8e44ad
         self.btn_find_visual.clicked.connect(self.action_auto_visual)
         l2.addWidget(self.btn_find_visual)
         l2.addStretch()
@@ -701,7 +703,7 @@ class MediaTab(QWidget):
         # [VEO UPGRADE] AI Quality Check Control
         self.btn_ai_qa = QPushButton("🔍 AI QUALITY CHECK")
         self.btn_ai_qa.setToolTip("Gửi video cho AI để kiểm tra lỗi render (Audio pops, Visual jumps)")
-        self.btn_ai_qa.setStyleSheet("background: #27ae60; font-weight: bold; padding: 8px; border-radius: 4px;")
+        apply_kind(self.btn_ai_qa, "success")  # PR-5e: was inline #27ae60
         self.btn_ai_qa.clicked.connect(self.action_ai_qa)
         l3.addWidget(self.btn_ai_qa)
 
@@ -758,7 +760,7 @@ class MediaTab(QWidget):
         # Nút Tạo Full
         self.btn_create_full = QPushButton("⚡ TẠO THUMBNAIL (FULL)")
         self.btn_create_full.setToolTip("Tự động: Tìm Sticker -> Vẽ Nền -> Ghép Layer")
-        self.btn_create_full.setStyleSheet("background: #d35400; font-weight:bold; font-size: 14px; padding: 12px;")
+        apply_kind(self.btn_create_full, "warning")  # PR-5e: was inline #d35400
         self.btn_create_full.clicked.connect(self.action_generate_full_thumbnail) # Hàm mới
         l2.addWidget(self.btn_create_full)
 
@@ -790,7 +792,7 @@ class MediaTab(QWidget):
 
         # Nút Đổi Bố Cục (Re-roll Layout)
         self.btn_reroll_layout = QPushButton("🎲 Đổi Bố Cục")
-        self.btn_reroll_layout.setStyleSheet("background: #2980b9; font-weight: bold;")
+        apply_kind(self.btn_reroll_layout, "primary")  # PR-5e: was inline #2980b9
         self.btn_reroll_layout.clicked.connect(self.action_randomize_layout) # Hàm mới
 
         self.btn_prev_thumb = QPushButton("<")
@@ -798,7 +800,7 @@ class MediaTab(QWidget):
 
         # --- [CTO ADD] NÚT XÓA ẢNH ĐANG XEM ---
         self.btn_delete_thumb = QPushButton("🗑️ Xóa")
-        self.btn_delete_thumb.setStyleSheet("background: #c0392b; font-weight: bold;")
+        apply_kind(self.btn_delete_thumb, "danger")  # PR-5e: was inline #c0392b
         self.btn_delete_thumb.setToolTip("Xóa bỏ phương án này khỏi danh sách")
         self.btn_delete_thumb.clicked.connect(self.action_delete_current_thumb)
         # --------------------------------------
@@ -851,22 +853,22 @@ class MediaTab(QWidget):
         # C2: Action
         c2 = QWidget(); l2 = QVBoxLayout(c2)
         self.btn_search_music = QPushButton("🔎 Tìm thủ công")
-        self.btn_search_music.setStyleSheet("background: #34495e; padding: 6px;")
+        apply_kind(self.btn_search_music, "info")  # PR-5e: was inline #34495e
         self.btn_search_music.clicked.connect(self.action_search_music_online)
 
         self.btn_auto_music = QPushButton("⚡ TỰ ĐỘNG (AUTO)")
         self.btn_auto_music.setToolTip("BƯỚC 3: AI sẽ phân tích 'Mood' của video và tự động tìm nhạc nền phù hợp trên Pixabay/Pexels.")
-        self.btn_auto_music.setStyleSheet("background: #16a085; font-weight: bold; padding: 10px; color: white;")
+        apply_kind(self.btn_auto_music, "success")  # PR-5e: was inline #16a085
         self.btn_auto_music.clicked.connect(self.action_auto_music)
 
         self.btn_import_music = QPushButton("📂 NHẬP FILE MP3")
-        self.btn_import_music.setStyleSheet("background: #e67e22; font-weight: bold; padding: 8px;")
+        apply_kind(self.btn_import_music, "warning")  # PR-5e: was inline #e67e22
         self.btn_import_music.clicked.connect(self.action_import_music)
         
         # [VEO PRO UPGRADE] Vocal Strip Button
         self.btn_strip_vocal = QPushButton("🎙️ TÁCH LỜI (STRIP VOCAL)")
         self.btn_strip_vocal.setToolTip("Dùng AI Demucs để tách lời khỏi nhạc")
-        self.btn_strip_vocal.setStyleSheet("background: #2c3e50; border: 1px solid #f1c40f; color: #f1c40f; padding: 8px;")
+        apply_kind(self.btn_strip_vocal, "info")  # PR-5e: was inline #2c3e50 / amber accent
         self.btn_strip_vocal.clicked.connect(self.action_strip_vocal)
 
         l2.addWidget(QLabel("Hành động:"))
@@ -1441,7 +1443,7 @@ class MediaTab(QWidget):
         # Kích hoạt chế độ chạy ngầm
         self.is_batch_running = True
         self.btn_batch.setText(f"⛔ STOP ({len(self.batch_queue)})")
-        self.btn_batch.setStyleSheet("background: #c0392b; color: white; font-weight: bold;") # Đổi màu đỏ
+        apply_kind(self.btn_batch, "danger")  # PR-5e: was inline #c0392b (batch running)
         self.log(f"🚀 BẮT ĐẦU CHẠY BATCH: {len(self.batch_queue)} tác vụ đang xếp hàng...")
         
         self.process_next_batch_item()
@@ -1456,7 +1458,7 @@ class MediaTab(QWidget):
             self.is_batch_running = False
             # Reset nút bấm về màu xanh
             self.btn_batch.setText("⚡ TẠO FULL (Kênh)")
-            self.btn_batch.setStyleSheet("background: #27ae60; color: white; font-weight: bold;")
+            apply_kind(self.btn_batch, "success")  # PR-5e: was inline #27ae60 (batch idle)
             self.log("🏁 BATCH HOÀN TẤT! Đã xử lý xong tất cả.")
             QMessageBox.information(self, "Xong", "Đã chạy xong toàn bộ hàng đợi!")
             return
@@ -1643,7 +1645,7 @@ class MediaTab(QWidget):
         if hasattr(self, 'btn_batch'):
             self.btn_batch.setText("⚡ TẠO FULL (Kênh)")
             self.btn_batch.setEnabled(True)
-            self.btn_batch.setStyleSheet("background: #27ae60; color: white; font-weight: bold;")
+            apply_kind(self.btn_batch, "success")  # PR-5e: was inline #27ae60 (worker finished)
         
         # Mở lại các nút chức năng lẻ (nếu bị khóa)
         if hasattr(self, 'btn_gen_voice'): 

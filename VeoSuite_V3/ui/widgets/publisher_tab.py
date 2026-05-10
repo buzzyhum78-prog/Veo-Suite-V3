@@ -19,6 +19,7 @@ from PyQt6.QtGui import QFont, QColor
 from modules.publisher.account_manager import PublisherAccountManager
 from modules.publisher.platforms import AVAILABLE_PLATFORMS, get_platform_instance
 from modules.publisher.constants import get_next_golden_hour
+from ui.style_kit import apply_kind  # PR-5e: dynamic-property style helpers
 
 class AddAccountDialog(QDialog):
     """Cửa sổ Popup thêm tài khoản API mới"""
@@ -79,7 +80,7 @@ class AddAccountDialog(QDialog):
                 "<i>*Không cần nhập Token ở đây. Sau khi lưu, ở lần Upload đầu tiên, phần mềm sẽ mở trình duyệt để bạn xác thực tài khoản.</i>"
             )
             lbl.setWordWrap(True)
-            lbl.setStyleSheet("background: #2c3e50; padding: 10px; border-radius: 5px;")
+            lbl.setObjectName("infoBanner")  # PR-5e: dark-blue informational banner via global QSS
             self.dynamic_form.addRow(lbl)
             
         elif platform_name == "Facebook Reels":
@@ -143,16 +144,17 @@ class PublisherTab(QWidget):
         # --- Header ---
         header = QHBoxLayout()
         lbl_title = QLabel("📡 TRUNG TÂM PHÁT HÀNH & TỰ ĐỘNG HÓA")
-        lbl_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #00e6e6; padding: 5px;")
+        lbl_title.setObjectName("sectionTitleLabel")  # PR-5e: cyan section title via global QSS
+        lbl_title.setStyleSheet("font-size: 20px;")  # PR-5e: only override font-size, colour comes from global
         header.addWidget(lbl_title)
-        
+
         btn_refresh = QPushButton("🔄 Làm Mới Trạng Thái API")
         btn_refresh.setFixedWidth(180)
         btn_refresh.clicked.connect(self.refresh_accounts_data)
         header.addWidget(btn_refresh)
-        
+
         btn_import = QPushButton("📥 NHẬP TỪ PHÒNG DỰNG (AUTO)")
-        btn_import.setStyleSheet("background: #8e44ad; color: white; font-weight: bold;")
+        apply_kind(btn_import, "ai_magic")  # PR-5e
         btn_import.clicked.connect(self.action_scan_production)
         header.addWidget(btn_import)
         
@@ -160,10 +162,9 @@ class PublisherTab(QWidget):
         
         # --- Main Tabs ---
         self.tabs = QTabWidget()
-        self.tabs.setStyleSheet("""
-            QTabBar::tab { padding: 10px 20px; font-weight: bold; }
-            QTabBar::tab:selected { background-color: #2980b9; color: white; }
-        """)
+        # PR-5e: per-tab QTabBar overrides removed; the global QTabBar styling
+        # in DARK_THEME_STYLESHEET handles selected/hover states consistently
+        # across every tab in the app (matches Quan Tri / Phat Hanh / Radar).
         
         self.tabs.addTab(self._build_account_tab(), "🔑 Quản Lý Tài Khoản (API)")
         self.tabs.addTab(self._build_upload_config_tab(), "⚙️ Cấu Hình Phát Hành")
@@ -188,7 +189,7 @@ class PublisherTab(QWidget):
         layout.addWidget(self.table_accounts)
         
         btn_add_account = QPushButton("➕ Thêm Tài Khoản Nền Tảng Mới")
-        btn_add_account.setStyleSheet("background: #27ae60; color: white; padding: 8px; font-weight: bold;")
+        apply_kind(btn_add_account, "success")  # PR-5e
         btn_add_account.clicked.connect(self._open_add_account_dialog)
         layout.addWidget(btn_add_account)
         
@@ -232,7 +233,7 @@ class PublisherTab(QWidget):
             
             # Nút xóa
             btn_del = QPushButton("❌ Xóa")
-            btn_del.setStyleSheet("color: #e74c3c; font-weight: bold;")
+            apply_kind(btn_del, "danger")  # PR-5e
             btn_del.clicked.connect(lambda checked, a_id=acc.get("id"): self._delete_account(a_id))
             self.table_accounts.setCellWidget(i, 4, btn_del)
 

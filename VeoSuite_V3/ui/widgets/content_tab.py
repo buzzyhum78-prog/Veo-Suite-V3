@@ -19,6 +19,7 @@ from deep_translator import GoogleTranslator
 from services.database_manager import DatabaseManager
 from services.ai_factory import AIFactory      
 
+from ui.style_kit import apply_kind, apply_accent  # PR-5e: dynamic-property style helpers
 
 from modules.content.constants import *
 from modules.content.ui_components import *
@@ -938,21 +939,21 @@ class ContentTab(QWidget):
         # --- HEADER ---
         header = QHBoxLayout()
         lbl = QLabel("📝 CONTENT FACTORY (TRUNG TÂM SẢN XUẤT)")
-        lbl.setStyleSheet("font-size: 18px; font-weight: bold; color: #00e6e6;")
+        lbl.setObjectName("sectionTitleLabel")  # PR-5e: was inline 18px/bold/#00e6e6
         
         # [MỚI] Nút Khôi phục (Undo)
         btn_restore = QPushButton("↩️ KHÔI PHỤC (UNDO)")
         btn_restore.setToolTip("Quay lại trạng thái trước khi Xóa/Dọn dẹp gần nhất")
-        btn_restore.setStyleSheet("background: #8e44ad; color: white; font-weight: bold;")
+        apply_kind(btn_restore, "ai_magic")  # PR-5e: was inline #8e44ad
         btn_restore.clicked.connect(self.restore_last_backup) # Hàm này sẽ viết ở dưới
 
         btn_refresh = QPushButton("🔄 NẠP LẠI DATA")
-        btn_refresh.setStyleSheet("background: #34495e; color: white; font-weight: bold;")
+        apply_kind(btn_refresh, "info")  # PR-5e: was inline #34495e
         btn_refresh.setToolTip("Click nếu bạn vừa xóa file database thủ công")
         btn_refresh.clicked.connect(self.hard_reload_data)
 
         btn_new = QPushButton("+ DỰ ÁN MỚI")
-        btn_new.setStyleSheet("background: #27ae60; color: white; font-weight: bold;")
+        apply_kind(btn_new, "success")  # PR-5e: was inline #27ae60
         btn_new.clicked.connect(self.add_new_project_dialog)
 
         header.addWidget(lbl); header.addStretch()
@@ -1068,13 +1069,13 @@ class ContentTab(QWidget):
         panel_3 = QFrame(); l3 = QVBoxLayout(panel_3); l3.setContentsMargins(0,0,0,0)
         
         scroll = QScrollArea(); scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: #2d2d30; }")
+        scroll.setObjectName("contentEditorScroll")  # PR-5e: was inline border:none + bg #2d2d30
         scroll_content = QWidget(); self.scroll_layout = QVBoxLayout(scroll_content)
         self.scroll_layout.setSpacing(15); self.scroll_layout.setContentsMargins(10, 10, 10, 10)
         
         # 1. KỊCH BẢN
         grp_script = QGroupBox("📜 KỊCH BẢN & LỜI THOẠI")
-        grp_script.setStyleSheet("font-weight: bold; color: #f1c40f; border: 1px solid #555;")
+        apply_accent(grp_script, "amber")  # PR-5e: was inline #f1c40f border
         ls = QVBoxLayout(grp_script); ls.setSpacing(10)
         
         self.box_script_board = self._create_input_box("KỊCH BẢN PHÂN CẢNH (SCENES JSON)", "Dữ liệu cấu trúc...", 120)
@@ -1089,7 +1090,7 @@ class ContentTab(QWidget):
 
         # 2. METADATA
         grp_meta = QGroupBox("🚀 SEO & AUTO-UPLOAD")
-        grp_meta.setStyleSheet("font-weight: bold; color: #e74c3c; border: 1px solid #555;")
+        apply_accent(grp_meta, "red")  # PR-5e: was inline #e74c3c border
         lm = QVBoxLayout(grp_meta); lm.setSpacing(10)
         
         self.box_title = self._create_input_box("TIÊU ĐỀ (TITLE)", "Tiêu đề video...", 50)
@@ -1104,7 +1105,7 @@ class ContentTab(QWidget):
 
         # 3. VISUALS & MUSIC
         grp_vis = QGroupBox("🎨 VISUALS & MUSIC")
-        grp_vis.setStyleSheet("font-weight: bold; color: #2ecc71; border: 1px solid #555;")
+        apply_accent(grp_vis, "emerald")  # PR-5e: was inline #2ecc71 border
         lv = QVBoxLayout(grp_vis); lv.setSpacing(10)
         
         self.box_visual = self._create_input_box("PROMPT VẼ THUMBNAIL / ẢNH", "Prompt cho AI vẽ...", 70)
@@ -1122,7 +1123,7 @@ class ContentTab(QWidget):
 
         # 4. ACTION BAR (NÚT LƯU ĐẸP)
         action_bar = QFrame()
-        action_bar.setStyleSheet("background: #252526; border-top: 1px solid #3e3e42;")
+        action_bar.setObjectName("contentActionBar")  # PR-5e: was inline bg #252526 + border-top
         action_layout = QHBoxLayout(action_bar)
         action_layout.setContentsMargins(10, 10, 10, 10); action_layout.setSpacing(10)
 
@@ -1130,12 +1131,14 @@ class ContentTab(QWidget):
         
         btn_save = QPushButton("💾 LƯU BÀI NÀY")
         btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_save.setStyleSheet(btn_style + "QPushButton { background: #e67e22; color: white; } QPushButton:hover { background: #d35400; }")
+        btn_save.setMinimumHeight(40)  # was baked into btn_style
+        apply_kind(btn_save, "warning")  # PR-5e: was inline #e67e22
         btn_save.clicked.connect(self.on_save_media)
 
         btn_save_batch = QPushButton("📦 LƯU TẤT CẢ (ĐÃ XONG)")
         btn_save_batch.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_save_batch.setStyleSheet(btn_style + "QPushButton { background: #27ae60; color: white; } QPushButton:hover { background: #2ecc71; }")
+        btn_save_batch.setMinimumHeight(40)
+        apply_kind(btn_save_batch, "success")  # PR-5e: was inline #27ae60
         btn_save_batch.clicked.connect(self.on_save_media_batch)
 
         action_layout.addWidget(btn_save, stretch=1)
@@ -2083,7 +2086,7 @@ class ContentTab(QWidget):
     def _create_channel_hq(self):
         """Tạo khu vực quản lý thông tin Kênh và Bào Key (PHIÊN BẢN PRO)"""
         group = QGroupBox("📢 BỘ CHỈ HUY KÊNH (CHANNEL HQ - SEO OPTIMIZED)")
-        group.setStyleSheet("QGroupBox { font-weight: bold; color: #00e6e6; border: 1px solid #444; margin-top: 10px; }")
+        apply_accent(group, "cyan")  # PR-5e: was inline #00e6e6 border
         layout = QVBoxLayout(group)
         layout.setSpacing(5)
         layout.setContentsMargins(5, 10, 5, 5)
@@ -2179,11 +2182,11 @@ class ContentTab(QWidget):
 
         # Nút Lưu Cấu Hình (MỚI)
         btn_save_config = QPushButton("💾 LƯU KÊNH")
-        btn_save_config.setStyleSheet("background: #27ae60; color: white; " + btn_style_compact) # font-weight: bold;")
+        apply_kind(btn_save_config, "success")  # PR-5e: was inline #27ae60
         btn_save_config.clicked.connect(self.save_channel_config) # Kết nối hàm lưu
 
         btn_regen_info = QPushButton("✨ Thiết Kế Kênh")
-        btn_regen_info.setStyleSheet("background: #34495e; color: white;" + btn_style_compact)
+        apply_kind(btn_regen_info, "info")  # PR-5e: was inline #34495e
         btn_regen_info.clicked.connect(self.auto_generate_channel_info_manual)
 
          # Thêm vào đầu tiên
@@ -2216,7 +2219,7 @@ class ContentTab(QWidget):
         h_tools.addWidget(self.spin_scale_qty)
 
         btn_scale = QPushButton("➕ BÀO KEY")
-        btn_scale.setStyleSheet("background: #8e44ad; color: white;" + btn_style_compact)
+        apply_kind(btn_scale, "ai_magic")  # PR-5e: was inline #8e44ad
         btn_scale.clicked.connect(self.run_idea_expansion)
         h_tools.addWidget(btn_scale)
 
@@ -2265,7 +2268,7 @@ class ContentTab(QWidget):
     def _create_control_panel(self):
         """Hàm tạo bảng điều khiển (Model, List, Tone, Prompt) để nhét vào Cột 2"""
         container = QFrame()
-        container.setStyleSheet("background: #252526; border-top: 2px solid #444;")
+        container.setObjectName("controlContainer")  # PR-5e: was inline bg #252526 + border-top
         layout = QVBoxLayout(container)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
@@ -2348,7 +2351,7 @@ class ContentTab(QWidget):
 
         # Nút Reset
         btn_reset = QPushButton("♻ Cập nhật Prompt theo cấu hình trên")
-        btn_reset.setStyleSheet("background: #333; color: #ccc; font-size: 10px; padding: 4px;")
+        apply_kind(btn_reset, "muted")  # PR-5e: was inline #333/#ccc
         def manual_update_prompt():
             self.update_prompt_preview()
             QMessageBox.information(self, "Đã cập nhật", "✅ Đã làm mới Prompt theo cấu hình hiện tại!")
@@ -2359,29 +2362,29 @@ class ContentTab(QWidget):
         action_box = QHBoxLayout()
         # [MỚI] NÚT NẠP FILE DATA
         btn_import = QPushButton("📂 Nhập Key")
-        btn_import.setStyleSheet("background: #34495e; color: white; padding: 8px;")
+        apply_kind(btn_import, "info")  # PR-5e: was inline #34495e
         btn_import.clicked.connect(self.import_json_file)
 
         # --- [THÊM NÚT NÀY] ---
         btn_cleanup = QPushButton("🧹 Dọn dẹp")
         btn_cleanup.setToolTip("Xóa bài trùng, bài rác, làm tươi danh sách")
-        btn_cleanup.setStyleSheet("background: #d35400; color: white; padding: 8px;")
+        apply_kind(btn_cleanup, "warning")  # PR-5e: was inline #d35400
         btn_cleanup.clicked.connect(self.cleanup_current_project) # Nối vào hàm dọn dẹp
         # ----------------------
 
         # Nút 1: Viết bài đang chọn
         btn_write_one = QPushButton("✍ Viết bài này")
-        btn_write_one.setStyleSheet("background: #2980b9; color: white; font-weight: bold; padding: 8px;")
+        apply_kind(btn_write_one, "primary")  # PR-5e: was inline #2980b9
         btn_write_one.clicked.connect(self.run_ai_writer_single)
         
         # Nút 2: VIẾT HÀNG LOẠT (WRITE ALL) - Ngôi sao sáng
         btn_write_all = QPushButton("⚡ VIẾT ALL (AUTO)")
-        btn_write_all.setStyleSheet("background: #8e44ad; color: white; font-weight: bold; padding: 8px;")
+        apply_kind(btn_write_all, "ai_magic")  # PR-5e: was inline #8e44ad
         btn_write_all.clicked.connect(self.run_ai_writer_batch)
         
         # [MỚI] NÚT HỦY (STOP) - Mặc định ẩn hoặc xám, khi chạy mới sáng
         self.btn_stop = QPushButton("🛑 HỦY TÁC VỤ")
-        self.btn_stop.setStyleSheet("background: #c0392b; color: white; font-weight: bold;")
+        apply_kind(self.btn_stop, "danger")  # PR-5e: was inline #c0392b
         self.btn_stop.clicked.connect(self.stop_selected_worker) # Hàm hủy bên dưới
 
         action_box.addWidget(btn_import)

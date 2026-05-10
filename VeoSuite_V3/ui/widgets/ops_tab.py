@@ -30,6 +30,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ui.style_kit import apply_kind  # PR-5e: dynamic-property style helpers
+
 logger = logging.getLogger("VeoSuite.UI.OpsTab")
 
 
@@ -67,15 +69,15 @@ class OpsTab(QWidget):
         # --- HEADER ---
         header = QHBoxLayout()
         lbl_title = QLabel("🛡️ TRUNG TÂM QUẢN TRỊ & AN NINH (OPS CENTER)")
-        lbl_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #00e6e6;")
+        lbl_title.setObjectName("sectionTitleLabel")  # PR-5e: cyan section title via global QSS
 
         # Các nút hành động nhanh
         btn_import_radar = QPushButton("🚀 Tạo Kênh Từ Radar")
-        btn_import_radar.setStyleSheet("background: #8e44ad; color: white; font-weight: bold;")
+        apply_kind(btn_import_radar, "ai_magic")  # PR-5e
         btn_import_radar.setToolTip("Lấy dữ liệu Trend từ Radar để khởi tạo kênh mới tự động")
 
         btn_add_existing = QPushButton("🔗 Liên kết Kênh có sẵn")
-        btn_add_existing.setStyleSheet("background: #27ae60; color: white;")
+        apply_kind(btn_add_existing, "success")  # PR-5e
 
         header.addWidget(lbl_title)
         header.addStretch()
@@ -85,14 +87,19 @@ class OpsTab(QWidget):
 
         # --- DASHBOARD TỔNG QUAN (Mini Stats) ---
         stats_frame = QFrame()
-        stats_frame.setStyleSheet("background: #252526; border-radius: 6px; padding: 10px;")
+        stats_frame.setObjectName("statsCard")  # PR-5e: card-style frame via global QSS
         s_layout = QHBoxLayout(stats_frame)
 
         # Hàm tạo thẻ thống kê nhỏ — trả (layout, value_label) để cập nhật về sau
         def create_stat_card(label, value, color):
+            # PR-5e: the label colour/font-size pair is treated as a
+            # token-pair (muted hint + bright value). The hint label uses
+            # the standard hintLabel objectName; the value label keeps
+            # its colour inline because it varies per-card and is also
+            # used to encode status (green = money, red = burn, etc).
             vbox = QVBoxLayout()
             lbl = QLabel(label)
-            lbl.setStyleSheet("color: #aaa; font-size: 12px;")
+            lbl.setObjectName("hintLabel")
             val = QLabel(value)
             val.setStyleSheet(f"color: {color}; font-size: 20px; font-weight: bold;")
             vbox.addWidget(lbl)
@@ -126,7 +133,7 @@ class OpsTab(QWidget):
         tb.addWidget(QComboBox())  # Placeholder cho filter Topic
         tb.addWidget(QComboBox())  # Placeholder cho filter Country
         btn_health_check = QPushButton("🩺 KIỂM TRA SỨC KHỎE TOÀN BỘ")
-        btn_health_check.setStyleSheet("background: #d35400; color: white;")
+        apply_kind(btn_health_check, "warning")  # PR-5e
         btn_health_check.clicked.connect(self._on_health_check_clicked)
         tb.addStretch()
         tb.addWidget(btn_health_check)
@@ -147,7 +154,7 @@ class OpsTab(QWidget):
         self.table_channels.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table_channels.verticalHeader().setVisible(False)
         self.table_channels.setAlternatingRowColors(True)
-        self.table_channels.setStyleSheet("background: #1e1e1e; border: none;")
+        # PR-5e: rely on the global QTableWidget styling instead of an inline override.
 
         layout_v.addWidget(self.table_channels)
         return widget
@@ -270,7 +277,9 @@ class OpsTab(QWidget):
             h.addWidget(QLabel(f"{metric}:"), 1)
             p = QProgressBar()
             p.setValue(75)
-            p.setStyleSheet("QProgressBar::chunk { background: #3498db; }")
+            p.setProperty(
+                "chunkColor", "primary"
+            )  # PR-5e: see styles.py for QProgressBar[chunkColor="primary"]
             h.addWidget(p, 4)
             layout_v.addLayout(h)
 
@@ -278,9 +287,9 @@ class OpsTab(QWidget):
         return widget
 
     def _apply_style(self):
-        self.setStyleSheet("""
-            QWidget { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI'; }
-            QTableWidget::item { padding: 5px; }
-            QGroupBox { border: 1px solid #444; border-radius: 6px; margin-top: 15px; font-weight: bold; }
-            QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 5px; color: #00e6e6; }
-        """)
+        # PR-5e: the global DARK_THEME_STYLESHEET applied by MainWindow already
+        # provides the QWidget/QTableWidget/QGroupBox styling this method used
+        # to inject. The local override here was the main reason switching to
+        # Ops Center felt like "jumping into another app". Intentionally a
+        # no-op now; kept as a hook for future tab-specific tweaks.
+        return None

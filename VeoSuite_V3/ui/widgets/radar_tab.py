@@ -16,6 +16,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QTimer, QRect, QUrl, QMetaObject, Q_ARG
 from PyQt6.QtGui import QColor, QBrush, QIcon, QFont, QAction, QPixmap, QStandardItemModel, QStandardItem, QCursor, QDesktopServices
 
+from ui.style_kit import apply_kind, apply_accent  # PR-5e: dynamic-property style helpers
+
 # --- IMPORT AI FACTORY ---
 try:
     from services.ai_factory import AIFactory
@@ -151,7 +153,7 @@ class RadarTab(QWidget):
         
         # 1. INPUT GROUP
         grp_in = QGroupBox("BỘ LỌC ĐẦU VÀO & CẤU HÌNH AI")
-        grp_in.setStyleSheet("QGroupBox {font-weight: bold; color: #ddd; border: 1px solid #444; margin-top: 10px;}")
+        apply_accent(grp_in, "slate")  # PR-5e: was inline #ddd / #444 border
         l_in = QVBoxLayout(grp_in)
         
         # Hàng 1: Các ComboBox (Đã dùng class mới dễ bấm)
@@ -195,14 +197,14 @@ class RadarTab(QWidget):
         
         self.btn_scan_niche = QPushButton("🧠 AI SINH Ý TƯỞNG")
         self.btn_scan_niche.setMinimumHeight(40)
-        self.btn_scan_niche.setStyleSheet("background: #0d7377; color: white; font-weight: bold;")
+        apply_kind(self.btn_scan_niche, "primary")  # PR-5e: was inline #0d7377
         self.btn_scan_niche.clicked.connect(self.run_niche_generator) # Kết nối hàm chạy
         self.log_signal.emit("🔍 Đã khởi tạo Tab Tình Báo (Radar).")
         
         # [MỚI] Nút Làm Mới (Reset)
         btn_reset = QPushButton("🧹 Làm mới")
         btn_reset.setMinimumHeight(40)
-        btn_reset.setStyleSheet("background: #555; color: white; border: 1px solid #777;")
+        apply_kind(btn_reset, "muted")  # PR-5e: was inline #555/#777
         btn_reset.clicked.connect(self.reset_tab1_inputs) # Kết nối hàm mới
 
         v_btn.addWidget(self.lbl_ai_tech)
@@ -281,17 +283,17 @@ class RadarTab(QWidget):
         h_tools = QHBoxLayout()
         
         btn_search = QPushButton("🔍 Tìm kiếm"); btn_search.clicked.connect(lambda: self.search_table(self.tbl_keywords))
-        btn_search.setStyleSheet("background: #333; color: #ccc; border: 1px solid #555; padding: 6px;")
+        apply_kind(btn_search, "muted")  # PR-5e: was inline #333/#555
         
         self.btn_fullscreen_idea = QPushButton("⛶ Full Screen"); self.btn_fullscreen_idea.setCheckable(True)
-        self.btn_fullscreen_idea.setStyleSheet("background: #333; color: #ccc; border: 1px solid #555; padding: 6px;")
+        apply_kind(self.btn_fullscreen_idea, "muted")  # PR-5e: was inline #333/#555
         self.btn_fullscreen_idea.toggled.connect(lambda c: self.toggle_fullscreen(self.tbl_keywords, self.btn_fullscreen_idea))
         
         btn_clear = QPushButton("🗑️ Xóa List"); btn_clear.clicked.connect(lambda: self.tbl_keywords.setRowCount(0))
-        btn_clear.setStyleSheet("background: #c0392b; color: white; padding: 6px;")
+        apply_kind(btn_clear, "danger")  # PR-5e: was inline #c0392b
 
         btn_restore = QPushButton("♻️ Khôi phục"); btn_restore.clicked.connect(self.restore_table)
-        btn_restore.setStyleSheet("background: #27ae60; color: white; padding: 6px;")
+        apply_kind(btn_restore, "success")  # PR-5e: was inline #27ae60
 
         h_tools.addWidget(btn_search)
         h_tools.addWidget(self.btn_fullscreen_idea)
@@ -309,7 +311,7 @@ class RadarTab(QWidget):
         self.lbl_step2_status = self.stage_idea['text']
 
         self.btn_next_step = QPushButton("🚀 CHUYỂN SANG BƯỚC 2 (ĐÀO SÂU)") # Gán vào self
-        self.btn_next_step.setStyleSheet("background: #d35400; color: white; font-weight: bold; padding: 12px;")
+        apply_kind(self.btn_next_step, "warning")  # PR-5e: was inline #d35400
         self.btn_next_step.clicked.connect(self.transfer_to_deep)
         l.addWidget(self.btn_next_step)
 
@@ -323,7 +325,7 @@ class RadarTab(QWidget):
     def _create_staging_area(self, title):
         grp = QGroupBox(title)
         # Style cho khung: Viền nét đứt, nền tối
-        grp.setStyleSheet("QGroupBox {font-weight: bold; border: 1px dashed #777; margin-top: 10px; background: #2b2b2b; color: #f1c40f;}")
+        apply_accent(grp, "amber")  # PR-5e: was inline #f1c40f / dashed #777
         
         v = QVBoxLayout(grp)
         
@@ -369,12 +371,12 @@ class RadarTab(QWidget):
         self.cb_time_filter.setCurrentIndex(1)
 
         self.btn_scan_hunter = QPushButton("🎯 QUÉT & TÍNH V/S")
-        self.btn_scan_hunter.setStyleSheet("background: #d83b01; color: white; font-weight: bold; padding: 8px;")
+        apply_kind(self.btn_scan_hunter, "danger")  # PR-5e: was inline #d83b01
         self.btn_scan_hunter.clicked.connect(self.run_opportunity_hunter)
         
         # Nút Hủy
         self.btn_stop_scan = QPushButton("🛑 HỦY")
-        self.btn_stop_scan.setStyleSheet("background: #555; color: white; font-weight: bold; padding: 8px;")
+        apply_kind(self.btn_stop_scan, "muted")  # PR-5e: was inline #555
         self.btn_stop_scan.setEnabled(False)
         self.btn_stop_scan.clicked.connect(self.stop_hunter_scan)
 
@@ -404,23 +406,23 @@ class RadarTab(QWidget):
         # 3. TOOLBAR AREA
         toolbar = QHBoxLayout() # Đây là LAYOUT
         btn_search = QPushButton("🔍 Tìm kiếm")
-        btn_search.setStyleSheet("background: #333; color: #ccc; border: 1px solid #555; padding: 6px;")
+        apply_kind(btn_search, "muted")  # PR-5e: was inline #333/#555
         btn_search.clicked.connect(lambda: self.search_table(self.tbl_videos))
         
         self.btn_fullscreen_hunter = QPushButton("⛶ Full Screen"); self.btn_fullscreen_hunter.setCheckable(True)
-        self.btn_fullscreen_hunter.setStyleSheet("background: #333; color: #ccc; border: 1px solid #555; padding: 6px;")
+        apply_kind(self.btn_fullscreen_hunter, "muted")  # PR-5e: was inline #333/#555
         self.btn_fullscreen_hunter.toggled.connect(lambda c: self.toggle_fullscreen(self.tbl_videos, self.btn_fullscreen_hunter))
 
         btn_export = QPushButton("💾 Xuất Excel")
-        btn_export.setStyleSheet("background: #2980b9; color: white; padding: 6px;")
+        apply_kind(btn_export, "primary")  # PR-5e: was inline #2980b9
         btn_export.clicked.connect(lambda: self.export_table(self.tbl_videos))
         
         btn_clear = QPushButton("🗑️ Xóa List")
-        btn_clear.setStyleSheet("background: #c0392b; color: white; padding: 6px;")
+        apply_kind(btn_clear, "danger")  # PR-5e: was inline #c0392b
         btn_clear.clicked.connect(self.clear_hunter_safe)
 
         btn_restore = QPushButton("♻️ Khôi phục")
-        btn_restore.setStyleSheet("background: #27ae60; color: white; padding: 6px;")
+        apply_kind(btn_restore, "success")  # PR-5e: was inline #27ae60
         btn_restore.clicked.connect(self.load_hunter_history_from_disk)
 
         toolbar.addWidget(btn_search)
@@ -503,7 +505,7 @@ class RadarTab(QWidget):
 
         # 5. ACTION BUTTON
         btn_spy = QPushButton("🕵️ CHUYỂN SANG BƯỚC 3 (GIẢI PHẪU VIDEO)")
-        btn_spy.setStyleSheet("background: #6a1b9a; color: white; font-weight: bold; padding: 10px;")
+        apply_kind(btn_spy, "ai_magic")  # PR-5e: was inline #6a1b9a
         btn_spy.clicked.connect(self.transfer_to_spy)
         
         # [QUAN TRỌNG] Nút là Widget nên dùng addWidget
@@ -528,20 +530,20 @@ class RadarTab(QWidget):
         
         btn_analyze = QPushButton("🧬 1. GIẢI MÃ DNA & DỊCH THUẬT")
         btn_analyze.setMinimumHeight(35)
-        btn_analyze.setStyleSheet("background: #c2185b; color: white; font-weight: bold; font-size: 12px;")
+        apply_kind(btn_analyze, "danger")  # PR-5e: was inline #c2185b
         btn_analyze.clicked.connect(self.run_spy_analysis)
         
         # [MỚI] THÊM CỤM NÚT QUẢN LÝ
         btn_restore_spy = QPushButton("♻️ Khôi phục")
         btn_restore_spy.setToolTip("Khôi phục phiên làm việc trước")
         btn_restore_spy.setFixedSize(130, 35)
-        btn_restore_spy.setStyleSheet("background: #27ae60; color: white; border-radius: 4px;")
+        apply_kind(btn_restore_spy, "success")  # PR-5e: was inline #27ae60
         btn_restore_spy.clicked.connect(self.load_spy_history_from_disk) # Gọi hàm load
 
         btn_clear_spy = QPushButton("🗑️ Xóa trống")
         btn_clear_spy.setToolTip("Xóa trắng màn hình")
         btn_clear_spy.setFixedSize(130, 35)
-        btn_clear_spy.setStyleSheet("background: #c0392b; color: white; border-radius: 4px;")
+        apply_kind(btn_clear_spy, "danger")  # PR-5e: was inline #c0392b
         btn_clear_spy.clicked.connect(self.clear_spy_tab) # Hàm mới bên dưới
 
         h_layout.addWidget(self.txt_video_url, 4)
@@ -690,7 +692,7 @@ class RadarTab(QWidget):
 
         # 3. STAGING AREA (KHU VỰC ĐÓNG GÓI - COMPACT VERSION)
         grp_clone = QGroupBox("🏭 DÂY CHUYỀN ĐÓNG GÓI (STAGING)")
-        grp_clone.setStyleSheet("QGroupBox {font-weight: bold; color: #00ffea; border: 1px dashed #444; margin-top: 10px;}")
+        apply_accent(grp_clone, "cyan")  # PR-5e: was inline #00ffea / dashed border
         
         # [QUAN TRỌNG] Set spacing cực nhỏ (2px) để các thành phần dính sát vào nhau
         l_clone = QVBoxLayout(grp_clone)
@@ -713,7 +715,7 @@ class RadarTab(QWidget):
         btn_refresh.setFixedSize(22, 22)
         # Lấy icon "Refresh" chuẩn của hệ thống
         btn_refresh.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
-        btn_refresh.setStyleSheet("background: #444; color: white; border: 1px solid #555; border-radius: 3px;")
+        apply_kind(btn_refresh, "muted")  # PR-5e: was inline #444/#555
         btn_refresh.clicked.connect(self.restore_original_choices)
         h_lbl_1.addWidget(btn_refresh)
         h_lbl_1.addStretch() # Đẩy sang trái
@@ -757,7 +759,7 @@ class RadarTab(QWidget):
         self.btn_plan = QPushButton("✨ BƯỚC 1: LÊN KẾ HOẠCH NHÂN BẢN & ĐẶT TÊN KÊNH (AI AUTO)")
         self.btn_plan.setFixedHeight(35)
         # Style xám (Disabled)
-        self.btn_plan.setStyleSheet("background: #444; color: #888; font-weight: bold; border: 1px solid #555;")
+        apply_kind(self.btn_plan, "muted")  # PR-5e: was inline #444/#888 (disabled state)
         self.btn_plan.setEnabled(False) # <--- KHÓA CỨNG
         self.btn_plan.setToolTip("⚠️ Hãy chạy 'GIẢI MÃ DNA' ở trên trước để có dữ liệu!")
         self.btn_plan.clicked.connect(self.run_channel_planning)
@@ -866,7 +868,7 @@ class RadarTab(QWidget):
         if hasattr(self, 'btn_scan_niche'):
             self.btn_scan_niche.setEnabled(False) # Khóa nút
             self.btn_scan_niche.setText("⏳ AI ĐANG TẠO Ý TƯỞNG...") # Đổi chữ
-            self.btn_scan_niche.setStyleSheet("background: #555; color: #aaa;") # Đổi màu xám
+            apply_kind(self.btn_scan_niche, "muted")  # PR-5e: was inline #555/#aaa (scanning)
         
         self.tbl_keywords.setRowCount(0) # Clear table
         
@@ -889,7 +891,7 @@ class RadarTab(QWidget):
         if hasattr(self, 'btn_scan_niche'):
             self.btn_scan_niche.setEnabled(True) # Mở khóa
             self.btn_scan_niche.setText("✨ GỢI Ý TỪ KHÓA NGÁCH") # Trả lại chữ cũ
-            self.btn_scan_niche.setStyleSheet("background: #0d7377; color: white; font-weight: bold;") # Trả lại màu xanh
+            apply_kind(self.btn_scan_niche, "primary")  # PR-5e: was inline #0d7377 # Trả lại màu xanh
 
     def on_keywords_generated(self, data_list, type):
         # Lưu backup trước khi hiển thị
@@ -1242,7 +1244,7 @@ class RadarTab(QWidget):
         if hasattr(self, 'btn_scan_hunter'):
             self.btn_scan_hunter.setEnabled(False)
             self.btn_scan_hunter.setText("⏳ ĐANG QUÉT...")
-            self.btn_scan_hunter.setStyleSheet("background: #555; color: #aaa;")
+            apply_kind(self.btn_scan_hunter, "muted")  # PR-5e: was inline #555/#aaa (scanning)
 
         time_mode = self.cb_time_filter.currentText()
 
@@ -1387,7 +1389,7 @@ class RadarTab(QWidget):
         self.tbl_videos.setItem(row_idx, 17, QTableWidgetItem(str(link_url)))
         btn_watch = QPushButton("▶ Xem")
         btn_watch.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_watch.setStyleSheet("background: #333; color: #4da6ff; border: 1px solid #555;")
+        apply_kind(btn_watch, "muted")  # PR-5e: was inline #333/#4da6ff
         btn_watch.clicked.connect(lambda checked, u=link_url: QDesktopServices.openUrl(QUrl(u)))
         self.tbl_videos.setCellWidget(row_idx, 18, btn_watch)
         
@@ -1417,7 +1419,7 @@ class RadarTab(QWidget):
         if hasattr(self, 'btn_scan_hunter'):
             self.btn_scan_hunter.setEnabled(True)
             self.btn_scan_hunter.setText("🎯 QUÉT & TÍNH V/S RATIO")
-            self.btn_scan_hunter.setStyleSheet("background: #d83b01; color: white; font-weight: bold; padding: 8px;")
+            apply_kind(self.btn_scan_hunter, "danger")  # PR-5e: was inline #d83b01
             
     def on_scan_results(self, results):
         # [CẬP NHẬT] LOGIC HIỂN THỊ: NHẬN GÌ HIỆN NẤY (KHÔNG LỌC NỮA)
@@ -1584,7 +1586,7 @@ class RadarTab(QWidget):
             
             btn_watch = QPushButton("▶ Xem")
             btn_watch.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn_watch.setStyleSheet("background: #333; color: #4da6ff; border: 1px solid #555;")
+            apply_kind(btn_watch, "muted")  # PR-5e: was inline #333/#4da6ff
             btn_watch.clicked.connect(lambda checked, u=link_url: QDesktopServices.openUrl(QUrl(u)))
             self.tbl_videos.setCellWidget(row_idx, 17, btn_watch) # Cột 17 Hiện
         
@@ -2260,7 +2262,7 @@ class RadarTab(QWidget):
             # --- [MỚI] MỞ KHÓA NÚT "LÊN KẾ HOẠCH" ---
             if hasattr(self, 'btn_plan'):
                 self.btn_plan.setEnabled(True)
-                self.btn_plan.setStyleSheet("background: #d35400; color: white; font-weight: bold;") # Màu cam Sáng
+                apply_kind(self.btn_plan, "warning")  # PR-5e: was inline #d35400 (active state)
                 self.btn_plan.setToolTip("✅ Dữ liệu đã sẵn sàng. Bấm để nhân bản!")
                 
                 # Hiệu ứng báo hiệu (Optional): Focus vào nút
@@ -2856,7 +2858,7 @@ class RadarTab(QWidget):
                 if link_url:
                     btn_watch = QPushButton("▶ Xem")
                     btn_watch.setCursor(Qt.CursorShape.PointingHandCursor)
-                    btn_watch.setStyleSheet("background: #333; color: #4da6ff; border: 1px solid #555; border-radius: 4px;")
+                    apply_kind(btn_watch, "muted")  # PR-5e: was inline #333/#4da6ff (loaded row)
                     # Dùng biến default arg u=link_url để tránh lỗi lambda
                     btn_watch.clicked.connect(lambda checked, u=link_url: QDesktopServices.openUrl(QUrl(u)))
                     self.tbl_videos.setCellWidget(i, 17, btn_watch)
@@ -3307,7 +3309,7 @@ class RadarTab(QWidget):
             if self.current_spy_data.get("skeleton"):
                 if hasattr(self, 'btn_plan'):
                     self.btn_plan.setEnabled(True)
-                    self.btn_plan.setStyleSheet("background: #d35400; color: white; font-weight: bold;")
+                    apply_kind(self.btn_plan, "warning")  # PR-5e: was inline #d35400 (active state)
 
             self.load_staging_table()        
         except Exception as e:
@@ -3598,7 +3600,7 @@ class RadarTab(QWidget):
         # [MỚI] Khóa lại nút Plan
         if hasattr(self, 'btn_plan'):
             self.btn_plan.setEnabled(False)
-            self.btn_plan.setStyleSheet("background: #444; color: #888; font-weight: bold; border: 1px solid #555;")
+            apply_kind(self.btn_plan, "muted")  # PR-5e: was inline #444/#888 (disabled state)
             self.btn_plan.setToolTip("⚠️ Hãy chạy 'GIẢI MÃ DNA' ở trên trước để có dữ liệu!")
     
     # --- [TÍNH NĂNG MỚI] LƯU/KHÔI PHỤC BẢNG STAGING (TAB 3) ---
