@@ -19,9 +19,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # Import nội bộ
 from database.db_manager import DatabaseManager
+from modules.plugins import PluginManager
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer
 from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtWidgets import QApplication, QLabel, QProgressBar, QSplashScreen, QVBoxLayout
+from services import font_bundle, telemetry
 from services.config_manager import LOGO_PATH, LOGS_DIR, ConfigManager
 from ui.main_window import MainWindow
 from ui.styles import DARK_THEME_STYLESHEET
@@ -168,6 +170,51 @@ def initialize_database() -> DatabaseManager:
         sys.exit(1)
 
 
+def initialize_plugins() -> PluginManager:
+    """Discover and load plugins from the built-in directory.
+
+    User-installed plugin paths can be added later via
+    ``manager.add_dir(...)``. Failures are logged but never raised —
+    a broken plugin must not prevent the host from starting.
+    """
+    logger = logging.getLogger("VeoSuite")
+    root = Path(__file__).resolve().parent
+    builtin_dir = root / "modules" / "plugins" / "builtin"
+    manager = PluginManager(plugin_dirs=[builtin_dir])
+    loaded, errors = manager.load_all()
+    logger.info("Plugin manager: %d loaded, %d errors", loaded, len(errors))
+    for path, err in errors:
+        logger.warning("Plugin %s skipped: %s", path, err)
+    return manager
+
+
+def initialize_telemetry() -> None:
+    """Configure the telemetry sink with the opt-in flag from settings.
+
+    Default is **disabled**. Activation requires the user to add
+    ``"telemetry_enabled": true`` to ``config/settings.json`` (no UI
+    surface yet — that's intentional for now, the existence of the
+    plumbing is the deliverable for PR-6).
+    """
+    import json
+
+    from services.config_manager import VEO_DB_DIR
+
+    settings_file = Path(__file__).resolve().parent / "config" / "settings.json"
+    enabled = False
+    if settings_file.is_file():
+        try:
+            with settings_file.open(encoding="utf-8") as f:
+                enabled = bool(json.load(f).get("telemetry_enabled", False))
+        except (OSError, json.JSONDecodeError):
+            enabled = False
+
+    telemetry_path = Path(VEO_DB_DIR) / "telemetry" / "events.jsonl"
+    telemetry.configure(telemetry_path, enabled=enabled)
+    if enabled:
+        telemetry.record("session_started", version="3.2.0")
+
+
 def create_application() -> QApplication:
     """Tạo QApplication."""
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
@@ -200,15 +247,39 @@ def main() -> int:
         logger.critical("Missing dependencies!")
         return 1
 
-    state: dict = {"db": None, "main_window": None, "exit_code": 0}
+    # PR-6 — register bundled fonts before MainWindow construction so
+    # any widget that asks Qt for a family by name finds it. Safe to
+    # call before app.exec(): QFontDatabase only requires that
+    # QApplication exists, which create_application() guaranteed.
+    try:
+        reg, fams = font_bundle.register_with_qt()
+        logger.info("Fonts: registered %d (families=%s)", reg, fams[:5])
+    except Exception:
+        logger.exception("Font bundle registration failed (non-fatal)")
+
+    # PR-6 — telemetry sink installed early so plugin lifecycle events
+    # have somewhere to go.
+    initialize_telemetry()
+
+    state: dict = {
+        "db": None,
+        "plugins": None,
+        "main_window": None,
+        "exit_code": 0,
+    }
 
     # Mỗi step là (label, percent, action) — action có thể là None.
     steps = [
         ("Checking system requirements...", 10, None),
-        ("Loading core modules...", 30, None),
-        ("Connecting to Database...", 50, lambda: state.update(db=initialize_database())),
+        ("Loading core modules...", 25, None),
+        ("Connecting to Database...", 45, lambda: state.update(db=initialize_database())),
+        ("Loading plugins...", 60, lambda: state.update(plugins=initialize_plugins())),
         ("Verifying integrity...", 75, None),
-        ("Preparing User Interface...", 90, lambda: state.update(main_window=MainWindow())),
+        (
+            "Preparing User Interface...",
+            90,
+            lambda: state.update(main_window=MainWindow(db=state["db"], plugin_manager=state["plugins"])),
+        ),
         ("Ready to launch!", 100, None),
     ]
 
@@ -225,6 +296,11 @@ def main() -> int:
                     raise RuntimeError("MainWindow was not initialized")
                 window.show()
                 splash.fade_out()
+                # Fire plugin on_app_start now that the host UI exists.
+                plugins = state.get("plugins")
+                if plugins is not None:
+                    ok, errs = plugins.start({"app": app, "db": state.get("db")})
+                    logger.info("Plugins started: %d ok, %d errors", ok, len(errs))
                 logger.info("App launched successfully")
             except Exception as exc:
                 logger.critical("Launch failed: %s", exc, exc_info=True)

@@ -27,6 +27,7 @@ try:
     from ui.widgets.media_tab import MediaTab
     from ui.widgets.editor_tab import EditorTab
     from ui.widgets.publisher_tab import PublisherTab
+    from ui.widgets.dashboard_tab import DashboardTab
     from ui.admin_tab import AdminTab
 except ImportError:
     # Trường hợp 2: Chạy trực tiếp trong folder ui/ hoặc cấu trúc phẳng
@@ -42,6 +43,7 @@ except ImportError:
         from widgets.media_tab import MediaTab
         from widgets.editor_tab import EditorTab
         from widgets.publisher_tab import PublisherTab
+        from widgets.dashboard_tab import DashboardTab
         from admin_tab import AdminTab
     except ImportError as e:
         # Trường hợp 3: Debug chi tiết lỗi nếu vẫn không tìm thấy
@@ -52,10 +54,14 @@ except ImportError:
         raise e
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, db=None, plugin_manager=None):
         super().__init__()
         self.current_department = None
-                
+        # PR-6 wiring — both are optional so smoke tests / older callers
+        # constructing ``MainWindow()`` with no args keep working.
+        self.db = db
+        self.plugin_manager = plugin_manager
+
         self._setup_window()
         self._create_ui()
         self.setStyleSheet(DARK_THEME_STYLESHEET)
@@ -124,10 +130,11 @@ class MainWindow(QMainWindow):
         departments = [
             {'name': 'Tình Báo', 'icon': '🎯', 'tooltip': 'Quét Trend & Spy'},
             {'name': 'Biên Tập', 'icon': '✍️', 'tooltip': 'Sáng tạo Kịch bản'},
-            {'name': 'Xưởng Media', 'icon': '🏭', 'tooltip': 'Sản xuất Voice/Ảnh/Nhạc'}, 
+            {'name': 'Xưởng Media', 'icon': '🏭', 'tooltip': 'Sản xuất Voice/Ảnh/Nhạc'},
             {'name': 'Dựng Phim', 'icon': '🎬', 'tooltip': 'Render Video & Editor'},
             {'name': 'Phát Hành', 'icon': '📡', 'tooltip': 'Upload đa kênh'},
-            {'name': 'Quản Trị', 'icon': '⚙️', 'tooltip': 'Cấu hình hệ thống'}
+            {'name': 'Quản Trị', 'icon': '⚙️', 'tooltip': 'Cấu hình hệ thống'},
+            {'name': 'Tổng Quan', 'icon': '📊', 'tooltip': 'Dashboard tổng hợp (PR-6)'},
         ]
         
         self.department_buttons = []
@@ -179,6 +186,13 @@ class MainWindow(QMainWindow):
         
         return header
 
+    # Department labels kept in module-level constants so toggle_sidebar()
+    # / switch_to_department() / the dashboard log line all share one source
+    # of truth — adding/removing a tab in _create_sidebar() now only requires
+    # updating these two tuples.
+    _DEPT_NAMES = ('Tình Báo', 'Biên Tập', 'Xưởng Media', 'Dựng Phim', 'Phát Hành', 'Quản Trị', 'Tổng Quan')
+    _DEPT_ICONS = ('🎯', '✍️', '🏭', '🎬', '📡', '⚙️', '📊')
+
     def toggle_sidebar(self):
         """Hàm đóng/mở sidebar"""
         width = self.sidebar.width()
@@ -198,10 +212,9 @@ class MainWindow(QMainWindow):
             self.lbl_logo.show()
             self.lbl_version.show()
             # Hiện lại text đầy đủ
-            depts = ['Tình Báo', 'Biên Tập', 'Xưởng Media', 'Dựng Phim', 'Phát Hành', 'Quản Trị']
-            icons = ['🎯', '✍️', '🏭', '🎬', '📡', '⚙️']
             for i, btn in enumerate(self.department_buttons):
-                btn.setText(f"{icons[i]}  {depts[i]}")
+                if i < len(self._DEPT_NAMES):
+                    btn.setText(f"{self._DEPT_ICONS[i]}  {self._DEPT_NAMES[i]}")
 
     def _create_content_stack(self):
         stack = QStackedWidget()
@@ -232,6 +245,18 @@ class MainWindow(QMainWindow):
         stack.addWidget(self.tab_admin)
         # ---------------------------------------------
 
+        # --- [PR-6] TAB 6: DASHBOARD (TỔNG QUAN) ---
+        # Constructed last so the plugin_manager / db dependencies (which
+        # may have been seeded by main.py) are visible. If neither is
+        # supplied (e.g. headless smoke test) the dashboard still renders
+        # with zeroed KPIs — see DashboardTab.refresh().
+        self.tab_dashboard = DashboardTab(
+            db=self.db,
+            plugin_manager=self.plugin_manager,
+        )
+        stack.addWidget(self.tab_dashboard)
+        # -------------------------------------------
+
         # --- [MỚI] ĐẤU NỐI DÂY THẦN KINH LOGGING TOÀN DIỆN ---
         # Nối dây từ TẤT CẢ các Tab về Main để hiện Nhật ký hệ thống
         # [QUAN TRỌNG]: Phải nối sau khi đã tạo hết các Tab ở trên!
@@ -241,7 +266,8 @@ class MainWindow(QMainWindow):
             (self.tab_media, "Xưởng Media"),
             (self.editor_tab, "Dựng Phim"),
             (self.publisher_tab, "Phát Hành"),
-            (self.tab_admin, "Quản Trị")
+            (self.tab_admin, "Quản Trị"),
+            (self.tab_dashboard, "Tổng Quan"),
         ]
         
         for tab_obj, tab_name in tabs_with_logs:
@@ -278,18 +304,21 @@ class MainWindow(QMainWindow):
         if 0 <= index < len(self.department_buttons):
             self.content_stack.setCurrentIndex(index)
             self.department_buttons[index].setChecked(True)
-            
-            # Ghi log khi chuyển tab
-            depts = ['Tình Báo', 'Biên Tập', 'Xưởng Media', 'Dựng Phim', 'Phát Hành', 'Quản Trị']
-            self.log_message(f"📂 Đã chuyển sang bộ phận: {depts[index]}")
+
+            # Ghi log khi chuyển tab (dùng chung _DEPT_NAMES với toggle_sidebar)
+            if index < len(self._DEPT_NAMES):
+                self.log_message(f"📂 Đã chuyển sang bộ phận: {self._DEPT_NAMES[index]}")
 
             # Xử lý riêng cho Media Tab
             if index == 2: # Media
                 if hasattr(self.tab_media, 'refresh_ready_list'):
-                    self.tab_media.refresh_ready_list()                    
+                    self.tab_media.refresh_ready_list()
             elif index == 3: # Editor (Dựng Phim)
                 if hasattr(self.editor_tab, 'refresh_project_list'):
                     self.editor_tab.refresh_project_list()
+            elif index == 6: # Tổng Quan (Dashboard) — PR-6
+                if hasattr(self.tab_dashboard, 'refresh'):
+                    self.tab_dashboard.refresh()
     
     def log_message(self, message):
         # Kiểm tra: Nếu tin nhắn chưa có timestamp (từ Main), thì thêm vào
