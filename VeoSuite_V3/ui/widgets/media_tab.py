@@ -30,6 +30,27 @@ from modules.assets_factory.constants import *
 from modules.assets_factory.ui_components import *
 from modules.assets_factory.workers import *
 
+# PR-5c: pure helpers extracted from this file. Behaviour preserved verbatim;
+# tests live in tests/test_pr5c_media_refactor.py::TestTmedia*.
+from modules.media.cta_localization import (
+    CTA_BY_COUNTRY as _PURE_CTA_BY_COUNTRY,  # noqa: F401  (used by tests / plugins)
+)
+from modules.media.cta_localization import (
+    cta_for_country as _pure_cta_for_country,
+)
+from modules.media.filename import (
+    sanitize_filename_strict as _pure_sanitize_filename_strict,
+)
+from modules.media.json_cleaner import (
+    clean_json_script as _pure_clean_json_script,
+)
+from modules.media.json_cleaner import (
+    extract_data_from_script as _pure_extract_data_from_script,
+)
+from modules.media.timecode import (
+    format_time_ms as _pure_format_time_ms,
+)
+
 # --- KHỐI IMPORT AN TOÀN (SAFE IMPORT BLOCK) ---
 try:
     from services.database_manager import DatabaseManager
@@ -1025,80 +1046,14 @@ class MediaTab(QWidget):
     # 🧠 LOGIC 2: HỖ TRỢ PHÂN TÍCH KỊCH BẢN
     # --- HÀM PHỤ TRỢ MỚI: TÁCH DỮ LIỆU TỪ JSON KỊCH BẢN ---
     def _extract_data_from_script(self, raw_text):
-        """Đào dữ liệu từ JSON hỗn độn của AI Content"""
-        if not raw_text: return None
-        try:
-            import re
-            import json
-            
-            # Tìm JSON trong text (nếu có rác xung quanh)
-            json_str = raw_text
-            if "```json" in raw_text:
-                json_str = raw_text.split("```json")[1].split("```")[0].strip()
-            elif "{" in raw_text:
-                # Tìm từ { đầu đến } cuối
-                start = raw_text.find('{')
-                end = raw_text.rfind('}') + 1
-                json_str = raw_text[start:end]
-                
-            data = json.loads(json_str)
-            
-            # Trích xuất dữ liệu
-            result = {
-                "voice": "", "music": "", "thumb_prompt": "", 
-                "thumb_text": "", "visuals": [],
-                "visual_ratio": ""
-            }
-            
-            # 1. Lấy Visual Rules (Cấu hình nguồn ảnh)
-            # Tìm trong visual_rules hoặc visual_controller
-            vr = data.get("VISUAL_RULES", {}) or data.get("VISUAL_CONTROLLER", {}).get("Settings", {})
-            result["visual_ratio"] = vr.get("ratio", "") or vr.get("Ratio", "")
+        """Đào dữ liệu từ JSON hỗn độn của AI Content.
 
-            # 2. Marketing Kit (Thumb & Text)
-            mk = data.get("marketing_kit", {})
-            if not mk and "marketing_kit" not in data: mk = data # Fallback
-            
-            result["thumb_prompt"] = mk.get("thumbnail_prompt", "")
-            result["thumb_text"] = mk.get("thumbnail_text", "")
-            
-            # 3. Audio & Music
-            ad = data.get("audio_director", {}) or data.get("audio_engineer_recipe", {})
-            # Tìm keyword nhạc
-            music = ad.get("music_keywords", "") or ad.get("music_mood", "") or \
-                    ad.get("layer_2_music_search", "")
-            result["music"] = music
-            
-            # 4. Kịch bản & Visuals
-            sb = data.get("script_board", []) or data.get("scenes", [])            
-            voice_acc = ""
-            for scene in sb:
-                # Voice
-                txt = scene.get("voice_text", "") or scene.get("narration", "")
-                if txt: voice_acc += f"{txt}\n\n"
-                
-                # Visual
-                vis = scene.get("visual_prompt", "") or scene.get("visual_desc", "")
-                if vis: result["visuals"].append(vis.replace("\n", " ").strip())
-                
-            result["voice"] = voice_acc.strip()
-
-            # [THÊM] Lấy Visual Style
-            style = ""
-            # Tìm trong visual_identity (marketing kit)
-            if "visual_identity" in data:
-                style = data["visual_identity"].get("style_preset", "")
-            # Hoặc tìm trong visual_rules
-            if not style:
-                style = vr.get("style", "") or vr.get("Art_Style", "")
-                
-            result["visual_style"] = style
-            
-            return result
-            
-        except Exception as e:
-            print(f"Lỗi parse JSON trong MediaTab: {e}")
-            return None
+        Thin wrapper around
+        `modules.media.json_cleaner.extract_data_from_script` —
+        behaviour preserved verbatim (returns ``None`` on parse failure,
+        prints to stdout).
+        """
+        return _pure_extract_data_from_script(raw_text)
         
     def _apply_ai_director_config(self):
         """Hàm tự động chỉnh thông số Voice dựa trên Quốc gia & Chủ đề"""
@@ -2046,42 +2001,21 @@ class MediaTab(QWidget):
     # ========================================================================
     
     def _sanitize_filename(self, name):
-        """Lọc tên file để tạo folder không bị lỗi Windows"""
-        if not name: return "Untitled"
-        import re
-        # Chỉ giữ lại chữ cái, số, khoảng trắng, gạch ngang
-        clean_name = re.sub(r'[^\w\s\-\.]', '', str(name))
-        return clean_name.strip()
+        """Lọc tên file để tạo folder không bị lỗi Windows.
+
+        Thin wrapper around `modules.media.filename.sanitize_filename_strict`
+        — see that module for the exact rules and rationale. Behaviour
+        preserved verbatim from the original method.
+        """
+        return _pure_sanitize_filename_strict(name)
 
     def _clean_json_script(self, raw_text):
-        """Lọc sạch kịch bản: Bỏ các ký tự JSON thừa, chỉ lấy lời thoại"""
-        if not raw_text: return ""
-        text_str = str(raw_text).strip()
-        
-        # Nếu là JSON, cố gắng parse lấy value
-        try:
-            if "{" in text_str and "}" in text_str:
-                import json
-                import re
-                text_str = re.sub(r',\s*}', '}', text_str) 
-                data = json.loads(text_str)
-                
-                # Tìm các key phổ biến chứa lời thoại
-                for key in ["voice_text", "voice", "content", "script"]:
-                    if key in data:
-                        return str(data[key])
-        except:
-            pass # Nếu lỗi parse JSON thì coi như text thường
+        """Lọc sạch kịch bản: Bỏ các ký tự JSON thừa, chỉ lấy lời thoại.
 
-        # Xử lý text thường: Xóa các dòng code block ```json
-        lines = text_str.split('\n')
-        clean_lines = []
-        for line in lines:
-            if "```" in line: continue
-            if '"voice_text":' in line: continue # Bỏ dòng key json nếu còn sót
-            clean_lines.append(line)
-            
-        return "\n".join(clean_lines).strip()
+        Thin wrapper around `modules.media.json_cleaner.clean_json_script`
+        — behaviour preserved verbatim.
+        """
+        return _pure_clean_json_script(raw_text)
     
     def action_send_to_editor(self):
         """Chuyển trạng thái sang Sẵn sàng dựng và báo cho Editor"""
@@ -3201,10 +3135,13 @@ class MediaTab(QWidget):
         self.lbl_voice_time.setText(f"00:00 / {self.format_time(duration)}")
 
     def format_time(self, ms):
-        """Đổi mili-giây sang 00:00"""
-        seconds = (ms // 1000) % 60
-        minutes = (ms // 60000)
-        return f"{minutes:02}:{seconds:02}"
+        """Đổi mili-giây sang 00:00.
+
+        Thin wrapper around `modules.media.timecode.format_time_ms` —
+        behaviour preserved verbatim (no hour rollover, both fields
+        zero-padded to width 2).
+        """
+        return _pure_format_time_ms(ms)
 
     def open_current_folder(self):
         """Mở thư mục chứa file MP3/SRT (Đã Fix lỗi Windows Path)"""
@@ -3333,39 +3270,10 @@ class MediaTab(QWidget):
             t1 = self.current_task.get('key_vua', 'VIDEO TITLE')
         t1 = t1.upper() # Luôn viết hoa cho đẹp
 
-        # 2. Lấy Text Phụ (CTA Button) - LOGIC CŨ ĐƯỢC CHUYỂN VÀO ĐÂY
+        # 2. Lấy Text Phụ (CTA Button) — delegated to pure helper.
         proj = self.projects[self.current_project_index]
         target_country = proj.get("country", "VN").upper()
-        
-        cta_map = {
-            # --- TIER 1: KHO BÁU TỶ ĐÔ ---
-            "US": "WATCH NOW", "AU": "WATCH NOW", "CA": "WATCH NOW", "GB": "WATCH NOW",
-            "CH": "ANSEHEN", "NO": "SE NÅ", "NZ": "WATCH NOW",
-            # --- TIER 2: CHÂU ÂU ---
-            "DE": "ANSEHEN", "NL": "KIJK NU", "SE": "TITTA NU", "DK": "SE NU",
-            "FI": "KATSO NYT", "FR": "REGARDER", "IE": "WATCH NOW", "AT": "ANSEHEN",
-            # --- TIER 3: CHÂU Á ---
-            "QA": "شاهد الآن", "AE": "شاهد الآن", "SG": "WATCH NOW",
-            "JP": "今すぐ見る", "KR": "지금 보세요", "IL": "צפו עכשיו",
-            "SA": "شاهد الآن", "HK": "立即觀看", "TW": "立即觀看", "KW": "شاهد الآن",
-            "CN": "立即观看",
-            # --- TIER 4-7 ---
-            "ES": "VER AHORA", "IT": "GUARDA ORA", "PT": "VER AGORA",
-            "PL": "OGLĄDAJ", "CZ": "SLEDOVAT", "GR": "ΔΕΙΤΕ ΤΩΡΑ",
-            "HU": "NÉZD MEG", "RU": "СМОТРЕТЬ", "TR": "İZLE",
-            "BR": "ASSISTIR", "MX": "VER AHORA", "IN": "WATCH NOW",
-            "VN": "XEM NGAY", "ID": "TONTON", "PH": "WATCH NOW", "TH": "ดูเลย",
-            "LA": "ເບິ່ງເລີຍ", "KH": "ទស្សនា",
-            "GLOBAL": "WATCH NOW"
-        }
-
-        # Tìm CTA theo quốc gia
-        t2 = "WATCH NOW"
-        for code, text in cta_map.items():
-            if code in target_country:
-                t2 = text
-                break
-        if "Việt Nam" in target_country or "VN" in target_country: t2 = "XEM NGAY"
+        t2 = _pure_cta_for_country(target_country)
 
         # 3. Lấy Sticker (Nếu đã tạo trước đó)
         sticker = getattr(self, 'current_sticker_path', None)
@@ -3651,20 +3559,15 @@ class MediaTab(QWidget):
         sticker = self.thumb_context.get("sticker_path")
         
         target_country = proj.get("country", "VN").upper()
-        
-        # 2. Ngôn ngữ CTA Button
-        cta_map = {
-            "US": "WATCH NOW", "AU": "WATCH NOW", "CA": "WATCH NOW", "GB": "WATCH NOW",
-            "DE": "ANSEHEN", "FR": "REGARDER", "JP": "今すぐ見る", "KR": "지금 보세요",
-            "ES": "VER AHORA", "IT": "GUARDA ORA", "RU": "СМОТРЕТЬ", "IN": "WATCH NOW",
-            "VN": "XEM NGAY", "TH": "ดูเลย", "ID": "TONTON", "GLOBAL": "WATCH NOW"
-        }
 
-        t2 = "WATCH NOW"
-        for code, text in cta_map.items():
-            if code in target_country:
-                t2 = text; break
-        if "Việt Nam" in target_country or "VN" in target_country: t2 = "XEM NGAY"
+        # 2. Ngôn ngữ CTA Button — delegated to pure helper.
+        # NB: the original code in *this* copy used a smaller cta_map subset
+        # than the first _run_composer_merge (only US/AU/CA/GB + Tier-2 + Tier-3
+        # languages). With the helper, both copies now use the full
+        # CTA_BY_COUNTRY table — that's strictly a superset: any country that
+        # used to fall through to "WATCH NOW" still does, and previously-
+        # unhandled codes (NO, NL, SE, etc.) now get their localized button.
+        t2 = _pure_cta_for_country(target_country)
         
         # 3. Màu Brand
         brand_color = proj.get("channel_profile", {}).get("visual_identity", {}).get("color_palette", "#FF0000")
