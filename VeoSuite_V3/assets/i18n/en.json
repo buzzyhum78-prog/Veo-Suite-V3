@@ -1,0 +1,29 @@
+{
+  "app.title": "VEO SUITE V3.2 Enterprise",
+  "app.version": "Version 3.2.0 — Enterprise Edition",
+  "app.started": "VEO SUITE V3.2 started successfully!",
+  "departments.intel": "Intel",
+  "departments.editor": "Editor",
+  "departments.media": "Media",
+  "departments.assembler": "Assembler",
+  "departments.publisher": "Publisher",
+  "departments.admin": "Admin",
+  "departments.dashboard": "Dashboard",
+  "departments.greeting": "Hi {name}, welcome back to VEO SUITE.",
+  "console.title": "SYSTEM LOG",
+  "dashboard.header": "SYSTEM DASHBOARD",
+  "dashboard.kpi.accounts": "Total channels",
+  "dashboard.kpi.money_channels": "Money channels",
+  "dashboard.kpi.warm_channels": "Warmup channels",
+  "dashboard.kpi.risk_channels": "At-risk channels",
+  "dashboard.plugins": "Loaded plugins",
+  "dashboard.telemetry.disabled": "Telemetry: off (default)",
+  "dashboard.telemetry.enabled": "Telemetry: on ({count} events)",
+  "dashboard.fonts.bundle": "Fonts: {ok}/{total} available",
+  "dashboard.refresh": "Refresh",
+  "dashboard.empty": "No data yet.",
+  "items": {
+    "one": "{n} item",
+    "other": "{n} items"
+  }
+}

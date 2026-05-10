@@ -1,0 +1,29 @@
+{
+  "app.title": "VEO SUITE V3.2 Enterprise",
+  "app.version": "Version 3.2.0 — Enterprise Edition",
+  "app.started": "VEO SUITE V3.2 đã khởi động thành công!",
+  "departments.intel": "Tình Báo",
+  "departments.editor": "Biên Tập",
+  "departments.media": "Xưởng Media",
+  "departments.assembler": "Dựng Phim",
+  "departments.publisher": "Phát Hành",
+  "departments.admin": "Quản Trị",
+  "departments.dashboard": "Tổng Quan",
+  "departments.greeting": "Chào {name}, chào mừng quay lại VEO SUITE.",
+  "console.title": "NHẬT KÝ HỆ THỐNG",
+  "dashboard.header": "TỔNG QUAN HỆ THỐNG",
+  "dashboard.kpi.accounts": "Tổng số kênh",
+  "dashboard.kpi.money_channels": "Kênh Money",
+  "dashboard.kpi.warm_channels": "Kênh Warmup",
+  "dashboard.kpi.risk_channels": "Kênh rủi ro",
+  "dashboard.plugins": "Plugin đang chạy",
+  "dashboard.telemetry.disabled": "Telemetry: tắt (mặc định)",
+  "dashboard.telemetry.enabled": "Telemetry: bật ({count} sự kiện)",
+  "dashboard.fonts.bundle": "Font: {ok}/{total} có sẵn",
+  "dashboard.refresh": "Làm mới",
+  "dashboard.empty": "Chưa có dữ liệu.",
+  "items": {
+    "one": "{n} mục",
+    "other": "{n} mục"
+  }
+}
