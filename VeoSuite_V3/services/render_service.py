@@ -18,6 +18,10 @@ from services.config_manager import FFMPEG_PATH, FFPROBE_PATH
 
 logger = logging.getLogger("VeoSuite.Render")
 
+# Tối đa cho mỗi lần gọi FFmpeg — thay bằng env nếu cần render dài hơn.
+import os as _os
+FFMPEG_TIMEOUT = int(_os.getenv("VEO_FFMPEG_TIMEOUT", "1800"))  # 30 phút
+
 
 class RenderService:
     """FFmpeg-based video renderer."""
@@ -164,7 +168,7 @@ class RenderService:
             ])
 
             logger.debug(f"FFmpeg command: {' '.join(cmd[:20])}...")
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
 
             logger.info(f"Render complete: {output_path}")
             return True, output_path
@@ -221,7 +225,7 @@ class RenderService:
             ]
             
             logger.info(f"Mixing audio (Ducking={ducking}) -> {output_path}")
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
             return True, output_path
             
         except subprocess.CalledProcessError as e:
@@ -277,7 +281,7 @@ class RenderService:
         ]
 
         try:
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
             return True, output_path
         except subprocess.CalledProcessError as e:
             return False, f"Sub Error: {e.stderr.decode('utf-8', errors='replace')[-200:]}"
@@ -337,7 +341,7 @@ class RenderService:
             ])
 
             logger.info(f"Adding branding to {video_path}...")
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
             return True, output_path
 
         except Exception as e:
@@ -388,7 +392,7 @@ class RenderService:
             ]
 
             logger.info(f"Concat {len(video_paths)} video clips -> {output_path}")
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
             logger.info(f"Render complete (concat): {output_path}")
             return True, output_path
 
@@ -402,7 +406,7 @@ class RenderService:
             try:
                 if os.path.exists(list_file):
                     os.remove(list_file)
-            except: pass
+            except Exception: pass
 
     # =========================================================================
     # [NEW] AGENTIC VISIBILITY: Timeline Summary Generator
@@ -425,7 +429,7 @@ class RenderService:
                 "-filter_complex", "showwavespic=s=1280x200:colors=cyan|blue",
                 "-frames:v", "1", waveform_png
             ]
-            subprocess.run(cmd_wv, check=True, capture_output=True)
+            subprocess.run(cmd_wv, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
             
             # 2. Tạo Filmstrip (N khung hình ghép lại)
             # Dùng tile filter để ghép 5 khung hình
@@ -434,7 +438,7 @@ class RenderService:
                 "-vf", "select='not(mod(n,100))',scale=256:-1,tile=5x1",
                 "-frames:v", "1", filmstrip_png
             ]
-            subprocess.run(cmd_fs, check=True, capture_output=True)
+            subprocess.run(cmd_fs, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
             
             # 3. Ghép Waveform và Filmstrip thành một ảnh duy nhất (Dùng vstack)
             cmd_merge = [
@@ -443,7 +447,7 @@ class RenderService:
                 "-filter_complex", "[0:v]scale=1280:-1[v1];[v1][1:v]vstack=inputs=2",
                 output_png
             ]
-            subprocess.run(cmd_merge, check=True, capture_output=True)
+            subprocess.run(cmd_merge, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT)
             
             logger.info(f"Generated production summary: {output_png}")
             return True

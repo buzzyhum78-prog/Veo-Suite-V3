@@ -11,6 +11,7 @@ from services.ai_factory import AIFactory
 import json
 import os # <--- [MỚI] Thêm cái này để xử lý file config
 from ui.widgets.ops_tab import OpsTab
+from ui.style_kit import apply_kind, apply_accent  # PR-5e: dynamic-property style helpers
 
 # File lưu cấu hình riêng cho Voice
 VOICE_CONFIG_FILE = "VEO_DB/voice_engine_config.json"
@@ -152,11 +153,11 @@ class AdminTab(QWidget):
         main_layout = QVBoxLayout(self)
         
         lbl_title = QLabel("🛡️ TRUNG TÂM QUẢN TRỊ AI (AI COMMAND CENTER)")
-        lbl_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #f1c40f; margin-bottom: 10px;")
+        lbl_title.setObjectName("adminTitleLabel")  # PR-5e: styled via global QSS
         main_layout.addWidget(lbl_title)
 
         self.tabs = QTabWidget()
-        self.tabs.setStyleSheet("QTabWidget::pane {border: 1px solid #444;} QTabBar::tab {min-width: 150px; padding: 8px;}")
+        self.tabs.setObjectName("adminSubTabs")  # PR-5e: styled via global QSS
         
         self.tab_resources = QWidget()
         self.setup_resources_tab()
@@ -190,7 +191,7 @@ class AdminTab(QWidget):
         layout = QVBoxLayout(self.tab_voice)
         
         lbl = QLabel("Quản lý các bộ máy tạo giọng nói (Voice Engines). Chọn phương án phù hợp cho từng loại kênh.")
-        lbl.setStyleSheet("color: #aaa; font-style: italic;")
+        lbl.setObjectName("hintLabel")  # PR-5e: italic hint via global QSS
         layout.addWidget(lbl)
 
         scroll = QScrollArea()
@@ -200,7 +201,7 @@ class AdminTab(QWidget):
 
         # --- BLOCK 1: EDGE TTS (VỆ TINH) ---
         grp_edge = QGroupBox("🟢 1. MICROSOFT EDGE TTS (Miễn Phí - Kênh Vệ Tinh)")
-        grp_edge.setStyleSheet("QGroupBox {border: 1px solid #2ecc71; font-weight: bold; margin-top: 10px;} QGroupBox::title {color: #2ecc71;}")
+        apply_accent(grp_edge, "emerald")  # PR-5e
         l_edge = QVBoxLayout(grp_edge)
         l_edge.addWidget(QLabel("✅ Trạng thái: Luôn Sẵn Sàng (Tích hợp sẵn)"))
         l_edge.addWidget(QLabel("ℹ️ Chiến thuật: Dùng cho Video số lượng lớn, News, Shorts vệ tinh."))
@@ -208,7 +209,7 @@ class AdminTab(QWidget):
 
         # --- BLOCK 2: OPENAI TTS (KÊNH CHÍNH) ---
         grp_openai = QGroupBox("💎 2. OPENAI TTS (Chất Lượng Cao - Kênh Chính)")
-        grp_openai.setStyleSheet("QGroupBox {border: 1px solid #9b59b6; font-weight: bold; margin-top: 10px;} QGroupBox::title {color: #9b59b6;}")
+        apply_accent(grp_openai, "lilac")  # PR-5e
         l_oa = QFormLayout(grp_openai)
         
         self.chk_openai_enable = QCheckBox("Kích hoạt OpenAI TTS")
@@ -223,7 +224,7 @@ class AdminTab(QWidget):
 
         # --- BLOCK 3: GOOGLE CLOUD TTS (SIÊU THỰC) ---
         grp_google = QGroupBox("🌎 3. GOOGLE CLOUD TTS (WaveNet - Kênh Chính/Review)")
-        grp_google.setStyleSheet("QGroupBox {border: 1px solid #e74c3c; font-weight: bold; margin-top: 10px;} QGroupBox::title {color: #e74c3c;}")
+        apply_accent(grp_google, "red")  # PR-5e
         l_gg = QFormLayout(grp_google)
         
         self.chk_google_enable = QCheckBox("Kích hoạt Google Cloud TTS")
@@ -242,7 +243,7 @@ class AdminTab(QWidget):
 
         # --- BLOCK 4: CUSTOM / LOCAL (TƯƠNG LAI) ---
         grp_custom = QGroupBox("🔌 4. CUSTOM / LOCAL API (Nâng cấp sau)")
-        grp_custom.setStyleSheet("QGroupBox {border: 1px solid #f1c40f; font-weight: bold; margin-top: 10px;} QGroupBox::title {color: #f1c40f;}")
+        apply_accent(grp_custom, "amber")  # PR-5e
         l_cus = QFormLayout(grp_custom)
         self.chk_custom_enable = QCheckBox("Kích hoạt Custom API (Coqui/Bark Local)")
         self.txt_custom_url = QLineEdit()
@@ -257,7 +258,7 @@ class AdminTab(QWidget):
         # Footer Button
         btn_save = QPushButton("💾 LƯU CẤU HÌNH VOICE")
         btn_save.setMinimumHeight(40)
-        btn_save.setStyleSheet("background: #3498db; color: white; font-weight: bold; font-size: 14px;")
+        apply_kind(btn_save, "primary")  # PR-5e
         btn_save.clicked.connect(self.save_voice_config)
         layout.addWidget(btn_save)
 
@@ -320,12 +321,12 @@ class AdminTab(QWidget):
         layout = QVBoxLayout(self.tab_vpn)
         
         lbl_desc = QLabel("Cấu hình Mạng & Proxy để tránh bị chặn IP khi quét dữ liệu diện rộng.")
-        lbl_desc.setStyleSheet("color: #aaa; font-style: italic;")
+        lbl_desc.setObjectName("hintLabel")  # PR-5e: italic hint via global QSS
         layout.addWidget(lbl_desc)
 
         # --- [MỚI] KHUNG 1: CẤU HÌNH PROXY XOAY CHIỀU (Dành cho Hunter/Spy) ---
         grp_proxy = QGroupBox("🌐 CẤU HÌNH ROTATING PROXY (Cho YouTube/Google)")
-        grp_proxy.setStyleSheet("QGroupBox {font-weight: bold; border: 1px solid #3498db; margin-top: 10px;} QGroupBox::title {color: #3498db;}")
+        apply_accent(grp_proxy, "blue")  # PR-5e
         l_proxy = QFormLayout(grp_proxy)
 
         self.chk_use_proxy = QCheckBox("Kích hoạt Proxy (Bật/Tắt)")
@@ -345,7 +346,7 @@ class AdminTab(QWidget):
         # --- [CŨ] KHUNG 2: CÁC CÔNG CỤ ĐỔI IP HỆ THỐNG (System Level) ---
         # (Giữ nguyên code cũ nhưng đổi tên biến để không xung đột)
         grp_sys = QGroupBox("🛠️ CÔNG CỤ ĐỔI IP HỆ THỐNG (WARP / DCOM)")
-        grp_sys.setStyleSheet("QGroupBox {font-weight: bold; border: 1px solid #555; margin-top: 10px;} QGroupBox::title {color: #aaa;}")
+        apply_accent(grp_sys, "slate")  # PR-5e
         v_sys = QVBoxLayout(grp_sys)
         
         h_type = QHBoxLayout()
@@ -382,24 +383,24 @@ class AdminTab(QWidget):
         btn_save = QPushButton("💾 LƯU CẤU HÌNH MẠNG")
         btn_save.clicked.connect(self.save_all_network_config) 
         btn_save.setMinimumHeight(45)
-        btn_save.setStyleSheet("background: #27ae60; color: white; font-weight: bold; font-size: 14px;")
+        apply_kind(btn_save, "success")  # PR-5e
         
         # Nút Hướng Dẫn (Mới)
         btn_guide = QPushButton("❓ Hướng Dẫn & Nguồn Mua")
         btn_guide.setMinimumHeight(45)
-        btn_guide.setStyleSheet("background: #34495e; color: white; border: 1px solid #555;")
+        apply_kind(btn_guide, "info")  # PR-5e
         btn_guide.clicked.connect(self.show_proxy_guide)
 
         # Nút Test Proxy (Mới)
         btn_test_proxy = QPushButton("🔄 Test Proxy")
         btn_test_proxy.setMinimumHeight(45)
-        btn_test_proxy.setStyleSheet("background: #d35400; color: white; font-weight: bold;")
+        apply_kind(btn_test_proxy, "warning")  # PR-5e
         btn_test_proxy.clicked.connect(self.test_proxy_connection)
 
         # Nút Test VPN Hệ thống (Cũ - Giữ lại nếu cần)
         btn_test_vpn = QPushButton("🛠️ Test Dcom/WARP")
         btn_test_vpn.setMinimumHeight(45)
-        btn_test_vpn.setStyleSheet("background: #555; color: #ccc;")
+        apply_kind(btn_test_vpn, "muted")  # PR-5e
         btn_test_vpn.clicked.connect(self.test_vpn_rotate)
 
         h_btn.addWidget(btn_save)
@@ -629,12 +630,12 @@ class AdminTab(QWidget):
         
         h_head = QHBoxLayout()
         btn_new_ai = QPushButton("➕ THÊM AI TÙY CHỈNH (Kho Mẫu Đỉnh Cao)")
-        btn_new_ai.setStyleSheet("background: #8e44ad; color: white; font-weight: bold; padding: 10px; font-size: 14px;")
+        apply_kind(btn_new_ai, "ai_magic")  # PR-5e
         btn_new_ai.clicked.connect(self.add_new_ai_dialog)
 
         btn_refresh = QPushButton("🔄 Làm tươi")
         btn_refresh.setToolTip("Đọc lại file cấu hình từ ổ cứng và cập nhật giao diện")
-        btn_refresh.setStyleSheet("background: #27ae60; color: white; font-weight: bold; padding: 8px;")
+        apply_kind(btn_refresh, "success")  # PR-5e
         btn_refresh.clicked.connect(self.on_refresh_resources_clicked)
 
         h_head.addWidget(btn_new_ai)
@@ -644,8 +645,8 @@ class AdminTab(QWidget):
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea {border: none; background: transparent;}")
-        
+        scroll.setObjectName("transparentScroll")  # PR-5e: borderless scroll via global QSS
+
         container = QWidget()
         self.res_layout = QVBoxLayout(container)
         self.res_layout.setSpacing(20)
@@ -663,25 +664,25 @@ class AdminTab(QWidget):
             
         for p_id, p_data in self.ai.registry["providers"].items():
             grp = QGroupBox(f"{p_data['name']} (ID: {p_id})")
-            grp.setStyleSheet("QGroupBox {font-weight: bold; border: 1px solid #555; margin-top: 5px; background: #252526;} QGroupBox::title {color: #00e6e6;}")
+            apply_accent(grp, "cyan")  # PR-5e
             l_grp = QFormLayout(grp)
-            
+
             txt_key = QTextEdit()
             txt_key.setPlainText(p_data.get("api_key", ""))
             txt_key.setPlaceholderText("Nhập API Key (Mỗi Key một dòng hoặc cách nhau dấu phẩy).\nHệ thống sẽ tự động xoay vòng nếu Key bị lỗi.")
             txt_key.setFixedHeight(60)
-            txt_key.setStyleSheet("background: #111; color: #fff; border: 1px solid #444;")
+            # PR-5e: rely on global QLineEdit/QTextEdit selectors instead of an inline override.
             
             v_key_btn = QVBoxLayout()
             
             btn_save_key = QPushButton("💾 Lưu Key")
-            btn_save_key.setStyleSheet("background: #27ae60; color: white; font-weight: bold;")
+            apply_kind(btn_save_key, "success")  # PR-5e
             btn_save_key.clicked.connect(lambda _, pid=p_id, t=txt_key: self.save_key_manual(pid, t.toPlainText()))
-            
+
             reg_url = p_data.get("reg_url", "")
             btn_link = QPushButton("🔗 Lấy Key (Web)")
             btn_link.setToolTip(f"Mở trang đăng ký: {reg_url}")
-            btn_link.setStyleSheet("color: #3498db; border: 1px dashed #3498db; background: transparent;")
+            btn_link.setObjectName("externalLinkButton")  # PR-5e: dashed link-style via global QSS
             if reg_url:
                 btn_link.clicked.connect(lambda _, url=reg_url: QDesktopServices.openUrl(QUrl(url)))
             else:
@@ -705,7 +706,7 @@ class AdminTab(QWidget):
             
             if is_scannable:
                 btn_scan = QPushButton("🔄 Quét Model Online")
-                btn_scan.setStyleSheet("background: #34495e; color: white; border: 1px solid #555;")
+                apply_kind(btn_scan, "info")  # PR-5e
                 btn_scan.setToolTip("Cập nhật danh sách Model mới nhất từ hãng")
                 btn_scan.clicked.connect(lambda _, pid=p_id, cb=cb_models: self.scan_models(pid, cb))
                 h_action.addWidget(btn_scan)
@@ -790,7 +791,7 @@ class AdminTab(QWidget):
         l.addRow("Output Path:", txt_output)
         
         btn_ok = QPushButton("LƯU CẤU HÌNH")
-        btn_ok.setStyleSheet("background: #27ae60; padding: 10px; font-weight: bold;")
+        apply_kind(btn_ok, "success")  # PR-5e
         btn_ok.clicked.connect(lambda: self.save_custom_ai(dialog, txt_id, txt_name, txt_url, txt_headers, txt_body, txt_output, txt_reg))
         l.addRow("", btn_ok)
         dialog.exec()
@@ -820,13 +821,13 @@ class AdminTab(QWidget):
         
         # 2. Header Hướng dẫn
         lbl_info = QLabel("<i>Tại đây bạn chỉ định AI nào sẽ phụ trách việc gì (Ví dụ: GPT-4 viết kịch bản, Gemini quét trend).</i>")
-        lbl_info.setStyleSheet("color: #bbb; margin-bottom: 5px;")
+        lbl_info.setObjectName("hintLabel")  # PR-5e: italic hint via global QSS
         layout.addWidget(lbl_info)
 
         # 3. Vùng cuộn (Scroll Area) - Chứa các GroupBox
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea {border: none; background: transparent;}")
+        scroll.setObjectName("transparentScroll")  # PR-5e: borderless scroll via global QSS
         
         self.routing_container = QWidget()
         self.routing_layout = QVBoxLayout(self.routing_container)
@@ -840,15 +841,15 @@ class AdminTab(QWidget):
         h_btn = QHBoxLayout()
         
         btn_auto = QPushButton("⚡ TỰ ĐỘNG PHÂN CÔNG (Khuyến nghị)")
-        btn_auto.setStyleSheet("background: #e67e22; color: white; padding: 8px; font-weight: bold;")
+        apply_kind(btn_auto, "warning")  # PR-5e
         btn_auto.clicked.connect(self._auto_assign_routing)
 
         btn_refresh = QPushButton("💾 Lưu & Làm mới Cấu hình")
-        btn_refresh.setStyleSheet("background: #27ae60; color: white; padding: 8px; font-weight: bold;")
+        apply_kind(btn_refresh, "success")  # PR-5e
         btn_refresh.clicked.connect(self.refresh_routing_table_manual)
 
         btn_guide = QPushButton("❓ Xem Hướng dẫn Mapping")
-        btn_guide.setStyleSheet("background: #34495e; color: #fff; padding: 8px;")
+        apply_kind(btn_guide, "info")  # PR-5e
         btn_guide.clicked.connect(self.show_mapping_guide) 
 
         h_btn.addWidget(btn_auto)

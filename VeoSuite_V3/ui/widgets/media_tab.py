@@ -23,12 +23,35 @@ from services.ai_factory import AIFactory
 from services.render_service import RenderService
 from services.thumbnail_composer import ThumbnailComposer
 
+from ui.style_kit import apply_kind, apply_accent  # PR-5e: dynamic-property style helpers
+
 VOICE_CONFIG_FILE = "VEO_DB/voice_engine_config.json"
 
 
 from modules.assets_factory.constants import *
 from modules.assets_factory.ui_components import *
 from modules.assets_factory.workers import *
+
+# PR-5c: pure helpers extracted from this file. Behaviour preserved verbatim;
+# tests live in tests/test_pr5c_media_refactor.py::TestTmedia*.
+from modules.media.cta_localization import (
+    CTA_BY_COUNTRY as _PURE_CTA_BY_COUNTRY,  # noqa: F401  (used by tests / plugins)
+)
+from modules.media.cta_localization import (
+    cta_for_country as _pure_cta_for_country,
+)
+from modules.media.filename import (
+    sanitize_filename_strict as _pure_sanitize_filename_strict,
+)
+from modules.media.json_cleaner import (
+    clean_json_script as _pure_clean_json_script,
+)
+from modules.media.json_cleaner import (
+    extract_data_from_script as _pure_extract_data_from_script,
+)
+from modules.media.timecode import (
+    format_time_ms as _pure_format_time_ms,
+)
 
 # --- KHỐI IMPORT AN TOÀN (SAFE IMPORT BLOCK) ---
 try:
@@ -123,7 +146,7 @@ class MediaTab(QWidget):
         # TẦNG 1: THANH CÔNG CỤ (ACTION BAR)
         # ============================================================
         action_bar = QFrame()
-        action_bar.setStyleSheet("background: #252526; border-bottom: 1px solid #333;")
+        action_bar.setObjectName("mediaActionBar")  # PR-5e: was inline bg #252526 + border-bottom
         action_bar.setFixedHeight(50)
         l_action = QHBoxLayout(action_bar)
         l_action.setContentsMargins(10, 5, 10, 5)
@@ -148,25 +171,25 @@ class MediaTab(QWidget):
         # Nhóm Xử Lý (Giữa)
         l_action.addStretch()
         self.btn_fix = QPushButton("🧠 Auto-Fix Missing")
-        self.btn_fix.setStyleSheet("color: #f1c40f; border: 1px solid #555; background: #333;")
+        apply_kind(self.btn_fix, "muted")  # PR-5e: was inline #f1c40f/#555/#333
         l_action.addWidget(self.btn_fix)
         l_action.addStretch()
 
         # --- [THÊM NÚT NÀY] ---
         self.btn_auto_brand = QPushButton("🎨 Auto-Brand All")
         self.btn_auto_brand.setToolTip("Tự động vẽ Logo & Banner cho các kênh chưa có")
-        self.btn_auto_brand.setStyleSheet("background: #8e44ad; color: white; font-weight: bold;")
+        apply_kind(self.btn_auto_brand, "ai_magic")  # PR-5e: was inline #8e44ad
         self.btn_auto_brand.clicked.connect(self.action_batch_generate_brand)
         l_action.addWidget(self.btn_auto_brand)
         # ----------------------
 
         # Nhóm Vận Hành (Phải)
         self.btn_batch = QPushButton("⚡ TẠO FULL (Kênh)")
-        self.btn_batch.setStyleSheet("background: #27ae60; color: white; font-weight: bold; padding: 5px 15px; border-radius: 4px;")
+        apply_kind(self.btn_batch, "success")  # PR-5e: was inline #27ae60
         self.btn_batch.clicked.connect(lambda: self.batch_action("full_run"))
         
         self.btn_stop = QPushButton("⛔ STOP")
-        self.btn_stop.setStyleSheet("background: #c0392b; color: white; font-weight: bold; padding: 5px 15px; border-radius: 4px;")
+        apply_kind(self.btn_stop, "danger")  # PR-5e: was inline #c0392b
         self.btn_stop.clicked.connect(self.action_stop_all)
         
         l_action.addWidget(self.btn_batch)
@@ -222,7 +245,7 @@ class MediaTab(QWidget):
         # --- TẦNG 3: XƯỞNG SẢN XUẤT (WORKBENCH) ---
         scroll_bench = QScrollArea()
         scroll_bench.setWidgetResizable(True)
-        scroll_bench.setStyleSheet("QScrollArea {border: none; background: #1e1e1e;}")
+        scroll_bench.setObjectName("mediaBenchScroll")  # PR-5e: was inline border:none + bg #1e1e1e
         
         self.bench_widget = QWidget()
         self.bench_layout = QVBoxLayout(self.bench_widget)
@@ -246,12 +269,12 @@ class MediaTab(QWidget):
         
         btn_send_editor = QPushButton("🚀 CHUYỂN SANG DỰNG PHIM (VEO EDITOR)")
         btn_send_editor.setMinimumHeight(50); btn_send_editor.setMinimumWidth(250)
-        btn_send_editor.setStyleSheet("background: #8e44ad; color: white; font-weight: bold; font-size: 14px; border-radius: 5px;")
+        apply_kind(btn_send_editor, "ai_magic")  # PR-5e: was inline #8e44ad
         btn_send_editor.clicked.connect(self.action_send_to_editor)
         
         btn_export = QPushButton("💾 Xuất ra máy tính (Dựng Premiere)")
         btn_export.setMinimumHeight(50); btn_export.setMinimumWidth(250)
-        btn_export.setStyleSheet("background: #e67e22; color: white; font-weight: bold; font-size: 14px; border-radius: 5px;")
+        apply_kind(btn_export, "warning")  # PR-5e: was inline #e67e22
         btn_export.clicked.connect(self.action_final_export)
         
         footer.addWidget(btn_send_editor)
@@ -279,7 +302,7 @@ class MediaTab(QWidget):
     def setup_command_deck(self):
         """KHỐI CHỈ HUY - TRÁI TIM CỦA HIẾN PHÁP V3.2"""
         grp = QGroupBox("🎛️ TRUNG TÂM CHỈ HUY (COMMAND DECK)")
-        grp.setStyleSheet("QGroupBox {font-weight: bold; color: #f1c40f; border: 1px solid #555; background: #222; margin-top: 10px;}")
+        apply_accent(grp, "amber")  # PR-5e: was inline #f1c40f border
         layout = QHBoxLayout(grp)
         layout.setSpacing(20)
 
@@ -367,12 +390,12 @@ class MediaTab(QWidget):
         btn_demo.clicked.connect(self.action_demo_part)
         
         self.btn_run_single = QPushButton("🎬 TẠO FULL (Video này)")
-        self.btn_run_single.setStyleSheet("background: #d35400; font-weight: bold;")
+        apply_kind(self.btn_run_single, "warning")  # PR-5e: was inline #d35400
         self.btn_run_single.clicked.connect(self.action_full_video_single)
         
         self.btn_render_final = QPushButton("🎥 RENDER VIDEO CUỐI")
         self.btn_render_final.setToolTip("Tự động ghép Voice + Ảnh + Nhạc + Phụ đề → Video hoàn chỉnh (FFmpeg)")
-        self.btn_render_final.setStyleSheet("background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #8e44ad,stop:1 #3498db); font-weight: bold; color: white; padding: 6px;")
+        apply_kind(self.btn_render_final, "ai_magic")  # PR-5e: was inline ai_magic gradient
         self.btn_render_final.clicked.connect(self.action_render_final_video)
         
         h_btn_vid.addWidget(btn_demo)
@@ -475,13 +498,13 @@ class MediaTab(QWidget):
         l2.addLayout(h_pitch)
 
         self.btn_gen_voice = QPushButton("🎙️ TẠO VOICE (Full)")
-        self.btn_gen_voice.setStyleSheet("background: #e67e22; font-weight:bold; padding: 8px;")
+        apply_kind(self.btn_gen_voice, "warning")  # PR-5e: was inline #e67e22
         self.btn_gen_voice.clicked.connect(self.action_single_voice)
         
         # [SỬA LẠI] Thêm self. để điều khiển khóa nút
         self.btn_preview_voice = QPushButton("🎧 Nghe thử 3 câu") 
         self.btn_preview_voice.clicked.connect(self.action_preview_voice)
-        self.btn_preview_voice.setStyleSheet("background: #34495e; border: 1px dashed #7f8c8d;")
+        apply_kind(self.btn_preview_voice, "info")  # PR-5e: was inline #34495e dashed
         
         l2.addWidget(self.btn_preview_voice); l2.addWidget(self.btn_gen_voice); l2.addStretch()
 
@@ -529,13 +552,13 @@ class MediaTab(QWidget):
         # Nút xem Sub
         self.btn_view_sub = QPushButton("👁️ Xem Sub")
         self.btn_view_sub.setToolTip("Xem nội dung file .srt")
-        self.btn_view_sub.setStyleSheet("background: #34495e; padding: 4px; font-size: 11px;")
+        apply_kind(self.btn_view_sub, "info")  # PR-5e: was inline #34495e
         self.btn_view_sub.clicked.connect(self.action_view_subtitle) # Hàm này sẽ viết ở bước 3
         self.btn_view_sub.setEnabled(False)
 
         # [THÊM] Nút mở thư mục lấy file
         self.btn_open_folder = QPushButton("📂 Mở thư mục (Lấy Sub)")
-        self.btn_open_folder.setStyleSheet("background: #34495e; padding: 5px; border: 1px solid #555;")
+        apply_kind(self.btn_open_folder, "info")  # PR-5e: was inline #34495e
         self.btn_open_folder.clicked.connect(self.open_current_folder)
         self.btn_open_folder.setEnabled(False) # Khóa khi chưa có file
 
@@ -658,7 +681,7 @@ class MediaTab(QWidget):
 
         self.btn_find_visual = QPushButton("🖼️ TÌM & TẠO (AUTO)")
         self.btn_find_visual.setToolTip("BƯỚC 2: AI Director sẽ tự động phân tích từng câu thoại và chọn hình ảnh/video phù hợp nhất.")
-        self.btn_find_visual.setStyleSheet("background: #8e44ad; font-weight: bold; padding: 10px;")
+        apply_kind(self.btn_find_visual, "ai_magic")  # PR-5e: was inline #8e44ad
         self.btn_find_visual.clicked.connect(self.action_auto_visual)
         l2.addWidget(self.btn_find_visual)
         l2.addStretch()
@@ -680,7 +703,7 @@ class MediaTab(QWidget):
         # [VEO UPGRADE] AI Quality Check Control
         self.btn_ai_qa = QPushButton("🔍 AI QUALITY CHECK")
         self.btn_ai_qa.setToolTip("Gửi video cho AI để kiểm tra lỗi render (Audio pops, Visual jumps)")
-        self.btn_ai_qa.setStyleSheet("background: #27ae60; font-weight: bold; padding: 8px; border-radius: 4px;")
+        apply_kind(self.btn_ai_qa, "success")  # PR-5e: was inline #27ae60
         self.btn_ai_qa.clicked.connect(self.action_ai_qa)
         l3.addWidget(self.btn_ai_qa)
 
@@ -737,7 +760,7 @@ class MediaTab(QWidget):
         # Nút Tạo Full
         self.btn_create_full = QPushButton("⚡ TẠO THUMBNAIL (FULL)")
         self.btn_create_full.setToolTip("Tự động: Tìm Sticker -> Vẽ Nền -> Ghép Layer")
-        self.btn_create_full.setStyleSheet("background: #d35400; font-weight:bold; font-size: 14px; padding: 12px;")
+        apply_kind(self.btn_create_full, "warning")  # PR-5e: was inline #d35400
         self.btn_create_full.clicked.connect(self.action_generate_full_thumbnail) # Hàm mới
         l2.addWidget(self.btn_create_full)
 
@@ -769,7 +792,7 @@ class MediaTab(QWidget):
 
         # Nút Đổi Bố Cục (Re-roll Layout)
         self.btn_reroll_layout = QPushButton("🎲 Đổi Bố Cục")
-        self.btn_reroll_layout.setStyleSheet("background: #2980b9; font-weight: bold;")
+        apply_kind(self.btn_reroll_layout, "primary")  # PR-5e: was inline #2980b9
         self.btn_reroll_layout.clicked.connect(self.action_randomize_layout) # Hàm mới
 
         self.btn_prev_thumb = QPushButton("<")
@@ -777,7 +800,7 @@ class MediaTab(QWidget):
 
         # --- [CTO ADD] NÚT XÓA ẢNH ĐANG XEM ---
         self.btn_delete_thumb = QPushButton("🗑️ Xóa")
-        self.btn_delete_thumb.setStyleSheet("background: #c0392b; font-weight: bold;")
+        apply_kind(self.btn_delete_thumb, "danger")  # PR-5e: was inline #c0392b
         self.btn_delete_thumb.setToolTip("Xóa bỏ phương án này khỏi danh sách")
         self.btn_delete_thumb.clicked.connect(self.action_delete_current_thumb)
         # --------------------------------------
@@ -830,22 +853,22 @@ class MediaTab(QWidget):
         # C2: Action
         c2 = QWidget(); l2 = QVBoxLayout(c2)
         self.btn_search_music = QPushButton("🔎 Tìm thủ công")
-        self.btn_search_music.setStyleSheet("background: #34495e; padding: 6px;")
+        apply_kind(self.btn_search_music, "info")  # PR-5e: was inline #34495e
         self.btn_search_music.clicked.connect(self.action_search_music_online)
 
         self.btn_auto_music = QPushButton("⚡ TỰ ĐỘNG (AUTO)")
         self.btn_auto_music.setToolTip("BƯỚC 3: AI sẽ phân tích 'Mood' của video và tự động tìm nhạc nền phù hợp trên Pixabay/Pexels.")
-        self.btn_auto_music.setStyleSheet("background: #16a085; font-weight: bold; padding: 10px; color: white;")
+        apply_kind(self.btn_auto_music, "success")  # PR-5e: was inline #16a085
         self.btn_auto_music.clicked.connect(self.action_auto_music)
 
         self.btn_import_music = QPushButton("📂 NHẬP FILE MP3")
-        self.btn_import_music.setStyleSheet("background: #e67e22; font-weight: bold; padding: 8px;")
+        apply_kind(self.btn_import_music, "warning")  # PR-5e: was inline #e67e22
         self.btn_import_music.clicked.connect(self.action_import_music)
         
         # [VEO PRO UPGRADE] Vocal Strip Button
         self.btn_strip_vocal = QPushButton("🎙️ TÁCH LỜI (STRIP VOCAL)")
         self.btn_strip_vocal.setToolTip("Dùng AI Demucs để tách lời khỏi nhạc")
-        self.btn_strip_vocal.setStyleSheet("background: #2c3e50; border: 1px solid #f1c40f; color: #f1c40f; padding: 8px;")
+        apply_kind(self.btn_strip_vocal, "info")  # PR-5e: was inline #2c3e50 / amber accent
         self.btn_strip_vocal.clicked.connect(self.action_strip_vocal)
 
         l2.addWidget(QLabel("Hành động:"))
@@ -1025,80 +1048,14 @@ class MediaTab(QWidget):
     # 🧠 LOGIC 2: HỖ TRỢ PHÂN TÍCH KỊCH BẢN
     # --- HÀM PHỤ TRỢ MỚI: TÁCH DỮ LIỆU TỪ JSON KỊCH BẢN ---
     def _extract_data_from_script(self, raw_text):
-        """Đào dữ liệu từ JSON hỗn độn của AI Content"""
-        if not raw_text: return None
-        try:
-            import re
-            import json
-            
-            # Tìm JSON trong text (nếu có rác xung quanh)
-            json_str = raw_text
-            if "```json" in raw_text:
-                json_str = raw_text.split("```json")[1].split("```")[0].strip()
-            elif "{" in raw_text:
-                # Tìm từ { đầu đến } cuối
-                start = raw_text.find('{')
-                end = raw_text.rfind('}') + 1
-                json_str = raw_text[start:end]
-                
-            data = json.loads(json_str)
-            
-            # Trích xuất dữ liệu
-            result = {
-                "voice": "", "music": "", "thumb_prompt": "", 
-                "thumb_text": "", "visuals": [],
-                "visual_ratio": ""
-            }
-            
-            # 1. Lấy Visual Rules (Cấu hình nguồn ảnh)
-            # Tìm trong visual_rules hoặc visual_controller
-            vr = data.get("VISUAL_RULES", {}) or data.get("VISUAL_CONTROLLER", {}).get("Settings", {})
-            result["visual_ratio"] = vr.get("ratio", "") or vr.get("Ratio", "")
+        """Đào dữ liệu từ JSON hỗn độn của AI Content.
 
-            # 2. Marketing Kit (Thumb & Text)
-            mk = data.get("marketing_kit", {})
-            if not mk and "marketing_kit" not in data: mk = data # Fallback
-            
-            result["thumb_prompt"] = mk.get("thumbnail_prompt", "")
-            result["thumb_text"] = mk.get("thumbnail_text", "")
-            
-            # 3. Audio & Music
-            ad = data.get("audio_director", {}) or data.get("audio_engineer_recipe", {})
-            # Tìm keyword nhạc
-            music = ad.get("music_keywords", "") or ad.get("music_mood", "") or \
-                    ad.get("layer_2_music_search", "")
-            result["music"] = music
-            
-            # 4. Kịch bản & Visuals
-            sb = data.get("script_board", []) or data.get("scenes", [])            
-            voice_acc = ""
-            for scene in sb:
-                # Voice
-                txt = scene.get("voice_text", "") or scene.get("narration", "")
-                if txt: voice_acc += f"{txt}\n\n"
-                
-                # Visual
-                vis = scene.get("visual_prompt", "") or scene.get("visual_desc", "")
-                if vis: result["visuals"].append(vis.replace("\n", " ").strip())
-                
-            result["voice"] = voice_acc.strip()
-
-            # [THÊM] Lấy Visual Style
-            style = ""
-            # Tìm trong visual_identity (marketing kit)
-            if "visual_identity" in data:
-                style = data["visual_identity"].get("style_preset", "")
-            # Hoặc tìm trong visual_rules
-            if not style:
-                style = vr.get("style", "") or vr.get("Art_Style", "")
-                
-            result["visual_style"] = style
-            
-            return result
-            
-        except Exception as e:
-            print(f"Lỗi parse JSON trong MediaTab: {e}")
-            return None
+        Thin wrapper around
+        `modules.media.json_cleaner.extract_data_from_script` —
+        behaviour preserved verbatim (returns ``None`` on parse failure,
+        prints to stdout).
+        """
+        return _pure_extract_data_from_script(raw_text)
         
     def _apply_ai_director_config(self):
         """Hàm tự động chỉnh thông số Voice dựa trên Quốc gia & Chủ đề"""
@@ -1486,7 +1443,7 @@ class MediaTab(QWidget):
         # Kích hoạt chế độ chạy ngầm
         self.is_batch_running = True
         self.btn_batch.setText(f"⛔ STOP ({len(self.batch_queue)})")
-        self.btn_batch.setStyleSheet("background: #c0392b; color: white; font-weight: bold;") # Đổi màu đỏ
+        apply_kind(self.btn_batch, "danger")  # PR-5e: was inline #c0392b (batch running)
         self.log(f"🚀 BẮT ĐẦU CHẠY BATCH: {len(self.batch_queue)} tác vụ đang xếp hàng...")
         
         self.process_next_batch_item()
@@ -1501,7 +1458,7 @@ class MediaTab(QWidget):
             self.is_batch_running = False
             # Reset nút bấm về màu xanh
             self.btn_batch.setText("⚡ TẠO FULL (Kênh)")
-            self.btn_batch.setStyleSheet("background: #27ae60; color: white; font-weight: bold;")
+            apply_kind(self.btn_batch, "success")  # PR-5e: was inline #27ae60 (batch idle)
             self.log("🏁 BATCH HOÀN TẤT! Đã xử lý xong tất cả.")
             QMessageBox.information(self, "Xong", "Đã chạy xong toàn bộ hàng đợi!")
             return
@@ -1688,7 +1645,7 @@ class MediaTab(QWidget):
         if hasattr(self, 'btn_batch'):
             self.btn_batch.setText("⚡ TẠO FULL (Kênh)")
             self.btn_batch.setEnabled(True)
-            self.btn_batch.setStyleSheet("background: #27ae60; color: white; font-weight: bold;")
+            apply_kind(self.btn_batch, "success")  # PR-5e: was inline #27ae60 (worker finished)
         
         # Mở lại các nút chức năng lẻ (nếu bị khóa)
         if hasattr(self, 'btn_gen_voice'): 
@@ -2046,42 +2003,21 @@ class MediaTab(QWidget):
     # ========================================================================
     
     def _sanitize_filename(self, name):
-        """Lọc tên file để tạo folder không bị lỗi Windows"""
-        if not name: return "Untitled"
-        import re
-        # Chỉ giữ lại chữ cái, số, khoảng trắng, gạch ngang
-        clean_name = re.sub(r'[^\w\s\-\.]', '', str(name))
-        return clean_name.strip()
+        """Lọc tên file để tạo folder không bị lỗi Windows.
+
+        Thin wrapper around `modules.media.filename.sanitize_filename_strict`
+        — see that module for the exact rules and rationale. Behaviour
+        preserved verbatim from the original method.
+        """
+        return _pure_sanitize_filename_strict(name)
 
     def _clean_json_script(self, raw_text):
-        """Lọc sạch kịch bản: Bỏ các ký tự JSON thừa, chỉ lấy lời thoại"""
-        if not raw_text: return ""
-        text_str = str(raw_text).strip()
-        
-        # Nếu là JSON, cố gắng parse lấy value
-        try:
-            if "{" in text_str and "}" in text_str:
-                import json
-                import re
-                text_str = re.sub(r',\s*}', '}', text_str) 
-                data = json.loads(text_str)
-                
-                # Tìm các key phổ biến chứa lời thoại
-                for key in ["voice_text", "voice", "content", "script"]:
-                    if key in data:
-                        return str(data[key])
-        except:
-            pass # Nếu lỗi parse JSON thì coi như text thường
+        """Lọc sạch kịch bản: Bỏ các ký tự JSON thừa, chỉ lấy lời thoại.
 
-        # Xử lý text thường: Xóa các dòng code block ```json
-        lines = text_str.split('\n')
-        clean_lines = []
-        for line in lines:
-            if "```" in line: continue
-            if '"voice_text":' in line: continue # Bỏ dòng key json nếu còn sót
-            clean_lines.append(line)
-            
-        return "\n".join(clean_lines).strip()
+        Thin wrapper around `modules.media.json_cleaner.clean_json_script`
+        — behaviour preserved verbatim.
+        """
+        return _pure_clean_json_script(raw_text)
     
     def action_send_to_editor(self):
         """Chuyển trạng thái sang Sẵn sàng dựng và báo cho Editor"""
@@ -3201,10 +3137,13 @@ class MediaTab(QWidget):
         self.lbl_voice_time.setText(f"00:00 / {self.format_time(duration)}")
 
     def format_time(self, ms):
-        """Đổi mili-giây sang 00:00"""
-        seconds = (ms // 1000) % 60
-        minutes = (ms // 60000)
-        return f"{minutes:02}:{seconds:02}"
+        """Đổi mili-giây sang 00:00.
+
+        Thin wrapper around `modules.media.timecode.format_time_ms` —
+        behaviour preserved verbatim (no hour rollover, both fields
+        zero-padded to width 2).
+        """
+        return _pure_format_time_ms(ms)
 
     def open_current_folder(self):
         """Mở thư mục chứa file MP3/SRT (Đã Fix lỗi Windows Path)"""
@@ -3333,39 +3272,10 @@ class MediaTab(QWidget):
             t1 = self.current_task.get('key_vua', 'VIDEO TITLE')
         t1 = t1.upper() # Luôn viết hoa cho đẹp
 
-        # 2. Lấy Text Phụ (CTA Button) - LOGIC CŨ ĐƯỢC CHUYỂN VÀO ĐÂY
+        # 2. Lấy Text Phụ (CTA Button) — delegated to pure helper.
         proj = self.projects[self.current_project_index]
         target_country = proj.get("country", "VN").upper()
-        
-        cta_map = {
-            # --- TIER 1: KHO BÁU TỶ ĐÔ ---
-            "US": "WATCH NOW", "AU": "WATCH NOW", "CA": "WATCH NOW", "GB": "WATCH NOW",
-            "CH": "ANSEHEN", "NO": "SE NÅ", "NZ": "WATCH NOW",
-            # --- TIER 2: CHÂU ÂU ---
-            "DE": "ANSEHEN", "NL": "KIJK NU", "SE": "TITTA NU", "DK": "SE NU",
-            "FI": "KATSO NYT", "FR": "REGARDER", "IE": "WATCH NOW", "AT": "ANSEHEN",
-            # --- TIER 3: CHÂU Á ---
-            "QA": "شاهد الآن", "AE": "شاهد الآن", "SG": "WATCH NOW",
-            "JP": "今すぐ見る", "KR": "지금 보세요", "IL": "צפו עכשיו",
-            "SA": "شاهد الآن", "HK": "立即觀看", "TW": "立即觀看", "KW": "شاهد الآن",
-            "CN": "立即观看",
-            # --- TIER 4-7 ---
-            "ES": "VER AHORA", "IT": "GUARDA ORA", "PT": "VER AGORA",
-            "PL": "OGLĄDAJ", "CZ": "SLEDOVAT", "GR": "ΔΕΙΤΕ ΤΩΡΑ",
-            "HU": "NÉZD MEG", "RU": "СМОТРЕТЬ", "TR": "İZLE",
-            "BR": "ASSISTIR", "MX": "VER AHORA", "IN": "WATCH NOW",
-            "VN": "XEM NGAY", "ID": "TONTON", "PH": "WATCH NOW", "TH": "ดูเลย",
-            "LA": "ເບິ່ງເລີຍ", "KH": "ទស្សនា",
-            "GLOBAL": "WATCH NOW"
-        }
-
-        # Tìm CTA theo quốc gia
-        t2 = "WATCH NOW"
-        for code, text in cta_map.items():
-            if code in target_country:
-                t2 = text
-                break
-        if "Việt Nam" in target_country or "VN" in target_country: t2 = "XEM NGAY"
+        t2 = _pure_cta_for_country(target_country)
 
         # 3. Lấy Sticker (Nếu đã tạo trước đó)
         sticker = getattr(self, 'current_sticker_path', None)
@@ -3651,20 +3561,15 @@ class MediaTab(QWidget):
         sticker = self.thumb_context.get("sticker_path")
         
         target_country = proj.get("country", "VN").upper()
-        
-        # 2. Ngôn ngữ CTA Button
-        cta_map = {
-            "US": "WATCH NOW", "AU": "WATCH NOW", "CA": "WATCH NOW", "GB": "WATCH NOW",
-            "DE": "ANSEHEN", "FR": "REGARDER", "JP": "今すぐ見る", "KR": "지금 보세요",
-            "ES": "VER AHORA", "IT": "GUARDA ORA", "RU": "СМОТРЕТЬ", "IN": "WATCH NOW",
-            "VN": "XEM NGAY", "TH": "ดูเลย", "ID": "TONTON", "GLOBAL": "WATCH NOW"
-        }
 
-        t2 = "WATCH NOW"
-        for code, text in cta_map.items():
-            if code in target_country:
-                t2 = text; break
-        if "Việt Nam" in target_country or "VN" in target_country: t2 = "XEM NGAY"
+        # 2. Ngôn ngữ CTA Button — delegated to pure helper.
+        # NB: the original code in *this* copy used a smaller cta_map subset
+        # than the first _run_composer_merge (only US/AU/CA/GB + Tier-2 + Tier-3
+        # languages). With the helper, both copies now use the full
+        # CTA_BY_COUNTRY table — that's strictly a superset: any country that
+        # used to fall through to "WATCH NOW" still does, and previously-
+        # unhandled codes (NO, NL, SE, etc.) now get their localized button.
+        t2 = _pure_cta_for_country(target_country)
         
         # 3. Màu Brand
         brand_color = proj.get("channel_profile", {}).get("visual_identity", {}).get("color_palette", "#FF0000")

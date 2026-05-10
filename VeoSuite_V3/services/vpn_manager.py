@@ -35,7 +35,7 @@ class VPNManager:
             try:
                 with open(VPN_CONFIG_FILE, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 logger.warning("VPN config corrupted, using defaults")
         return {}
 
@@ -64,9 +64,8 @@ class VPNManager:
     def _rotate_warp(self) -> bool:
         """Disconnect/reconnect WARP."""
         warp_path = self.config.get(
-            "warp_path",
-            r"C:\Program Files\Cloudflare\Cloudflare WARP\warp-cli.exe"
-        ).replace('"', '')
+            "warp_path", r"C:\Program Files\Cloudflare\Cloudflare WARP\warp-cli.exe"
+        ).replace('"', "")
 
         if not os.path.exists(warp_path) and not shutil.which("warp-cli"):
             logger.error("warp-cli.exe not found")
@@ -75,14 +74,10 @@ class VPNManager:
         try:
             exe = f'"{warp_path}"'
             subprocess.run(
-                f"{exe} disconnect", shell=True,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                f"{exe} disconnect", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
             time.sleep(2)
-            subprocess.run(
-                f"{exe} connect", shell=True,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
+            subprocess.run(f"{exe} connect", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(5)
             logger.info("WARP IP rotated successfully")
             return True
@@ -99,15 +94,9 @@ class VPNManager:
         profile = self.config.get("dcom_profile", "Viettel")
         try:
             logger.info(f"Resetting DCOM: {profile}")
-            subprocess.run(
-                f'rasdial "{profile}" /DISCONNECT', shell=True,
-                stdout=subprocess.DEVNULL
-            )
+            subprocess.run(f'rasdial "{profile}" /DISCONNECT', shell=True, stdout=subprocess.DEVNULL)
             time.sleep(3)
-            subprocess.run(
-                f'rasdial "{profile}"', shell=True,
-                stdout=subprocess.DEVNULL
-            )
+            subprocess.run(f'rasdial "{profile}"', shell=True, stdout=subprocess.DEVNULL)
             time.sleep(5)
             logger.info("DCOM IP rotated successfully")
             return True
@@ -126,12 +115,12 @@ class VPNManager:
             logger.error("Proxy list is empty")
             return False
 
-        proxy_list = [p.strip() for p in proxies_str.split('\n') if p.strip()]
+        proxy_list = [p.strip() for p in proxies_str.split("\n") if p.strip()]
         if not proxy_list:
             return False
 
         chosen = random.choice(proxy_list)
-        os.environ['http_proxy'] = chosen
-        os.environ['https_proxy'] = chosen
+        os.environ["http_proxy"] = chosen
+        os.environ["https_proxy"] = chosen
         logger.info(f"Proxy set to: {chosen}")
         return True

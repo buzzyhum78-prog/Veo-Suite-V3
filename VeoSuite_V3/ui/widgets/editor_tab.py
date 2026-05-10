@@ -14,6 +14,7 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 # Import các service
 from services.database_manager import DatabaseManager
 from services.render_service import RenderService
+from ui.style_kit import apply_kind  # PR-5e: dynamic-property style helpers
 
 # ============================================================================
 # 🧱 CLASS: TIMELINE BLOCK (KHỐI CẢNH THÔNG MINH)
@@ -49,21 +50,22 @@ class EditorTab(QWidget):
         
         # --- PHẦN 1: HEADER (Thanh công cụ) ---
         header = QFrame()
-        header.setStyleSheet("background: #252526; border-bottom: 1px solid #333;")
+        header.setObjectName("editorHeader")  # PR-5e: styled via global QSS
         header.setFixedHeight(50)
         h_layout = QHBoxLayout(header)
-        
+
         self.lbl_status = QLabel("🎬 EDITOR READY")
-        self.lbl_status.setStyleSheet("font-weight: bold; color: #00e6e6;")
-        
+        self.lbl_status.setObjectName("sectionTitleLabel")  # PR-5e: cyan section title via global QSS
+        self.lbl_status.setStyleSheet("font-size: 14px;")  # PR-5e: only override font-size, colour comes from global
+
         btn_refresh = QPushButton("📥 NHẬN NGUYÊN LIỆU TỪ MEDIA")
         btn_refresh.setToolTip("Lấy toàn bộ dữ liệu video đã hoàn thành từ Media Factory sang để dựng phim.")
-        btn_refresh.setStyleSheet("background: #e67e22; color: white; font-weight: bold; padding: 5px 15px; border-radius: 4px;")
+        apply_kind(btn_refresh, "warning")  # PR-5e
         btn_refresh.clicked.connect(self.refresh_project_list)
-        
+
         btn_send_pub = QPushButton("🚀 CHUYỂN SANG PHÁT HÀNH")
         btn_send_pub.setToolTip("Gửi video đã render xong sang bộ phận Phát hành để Upload.")
-        btn_send_pub.setStyleSheet("background: #8e44ad; color: white; font-weight: bold; padding: 5px 15px; border-radius: 4px;")
+        apply_kind(btn_send_pub, "ai_magic")  # PR-5e
         btn_send_pub.clicked.connect(self.action_send_to_publisher)
         
         h_layout.addWidget(self.lbl_status)
@@ -111,7 +113,7 @@ class EditorTab(QWidget):
         
         # Player (Trái)
         self.preview_container = QFrame()
-        self.preview_container.setStyleSheet("background: #000; border: 2px solid #444;")
+        self.preview_container.setObjectName("previewContainer")  # PR-5e: styled via global QSS
         self.preview_container.setMinimumSize(640, 360)
         pc_layout = QVBoxLayout(self.preview_container)
         pc_layout.setContentsMargins(0, 0, 0, 0)
@@ -124,7 +126,7 @@ class EditorTab(QWidget):
         # Lớp phủ Subtitle (Hiện trên ảnh)
         self.lbl_sub_overlay = QLabel("")
         self.lbl_sub_overlay.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_sub_overlay.setStyleSheet("color: white; font-size: 18px; font-weight: bold; background: rgba(0,0,0,100); padding: 5px;")
+        self.lbl_sub_overlay.setObjectName("subtitleOverlay")  # PR-5e: styled via global QSS
         self.lbl_sub_overlay.setFixedHeight(60)
         pc_layout.addWidget(self.lbl_sub_overlay, alignment=Qt.AlignmentFlag.AlignBottom)
         
@@ -135,16 +137,16 @@ class EditorTab(QWidget):
         
         self.btn_play_audio = QPushButton("▶ NGHE THỬ")
         self.btn_play_audio.clicked.connect(self.action_play_preview)
-        self.btn_play_audio.setStyleSheet("background: #2980b9; font-weight: bold;")
-        
+        apply_kind(self.btn_play_audio, "primary")  # PR-5e
+
         self.btn_stop_audio = QPushButton("⏹ DỪNG")
         self.btn_stop_audio.clicked.connect(lambda: self.media_player.stop())
-        self.btn_stop_audio.setStyleSheet("background: #c0392b; font-weight: bold;")
+        apply_kind(self.btn_stop_audio, "danger")  # PR-5e
         
         # Property Panel (Phải) - Chỉnh sửa thông tin Block đang chọn
         prop_panel = QFrame()
         prop_panel.setFixedWidth(300)
-        prop_panel.setStyleSheet("background: #1e1e1e; border-left: 1px solid #333;")
+        prop_panel.setObjectName("propertyPanel")  # PR-5e: styled via global QSS
         prop_layout = QVBoxLayout(prop_panel)
         prop_layout.addWidget(QLabel("💎 ASSET STATUS"))
         
@@ -183,12 +185,14 @@ class EditorTab(QWidget):
         # Nút Render Video này
         self.btn_render_single = QPushButton("🚀 RENDER VIDEO NÀY")
         self.btn_render_single.setToolTip("BƯỚC 4: Kết hợp Voice + Hình ảnh + Nhạc + Sub thành video hoàn chỉnh.")
-        self.btn_render_single.setStyleSheet("background: #e67e22; height: 40px; font-weight: bold; font-size: 14px;")
+        apply_kind(self.btn_render_single, "warning")  # PR-5e
+        self.btn_render_single.setMinimumHeight(40)
         self.btn_render_single.clicked.connect(self.action_render_single)
         prop_layout.addWidget(self.btn_render_single)
-        
+
         self.btn_stop_render = QPushButton("🛑 DỪNG RENDER")
-        self.btn_stop_render.setStyleSheet("background: #c0392b; height: 35px; font-weight: bold;")
+        apply_kind(self.btn_stop_render, "danger")  # PR-5e
+        self.btn_stop_render.setMinimumHeight(35)
         self.btn_stop_render.clicked.connect(self.action_stop_render)
         self.btn_stop_render.setEnabled(False)
         prop_layout.addWidget(self.btn_stop_render)
@@ -206,13 +210,13 @@ class EditorTab(QWidget):
         
         # B. TIMELINE AREA (Dưới)
         lbl_tm = QLabel("🎞️ SMART TIMELINE (Kéo sang phải để xem hết)")
-        lbl_tm.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        lbl_tm.setObjectName("timelineLabel")  # PR-5e: bold caption via global QSS
         layout.addWidget(lbl_tm)
-        
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFixedHeight(180) # Chiều cao cố định cho timeline
-        scroll.setStyleSheet("background: #252526; border: none;")
+        scroll.setObjectName("timelineScroll")  # PR-5e: dark background via global QSS
         
         self.timeline_container = QWidget()
         self.timeline_layout = QHBoxLayout(self.timeline_container)
@@ -233,11 +237,11 @@ class EditorTab(QWidget):
         
         self.btn_start_batch = QPushButton("▶ CHẠY RENDER ALL")
         self.btn_start_batch.setToolTip("BƯỚC 4: Tự động render hàng loạt tất cả các video đang chờ trong danh sách.")
-        self.btn_start_batch.setStyleSheet("background: #27ae60; font-weight: bold;")
+        apply_kind(self.btn_start_batch, "success")  # PR-5e
         self.btn_start_batch.clicked.connect(self.action_batch_render)
-        
+
         self.btn_stop_batch = QPushButton("🛑 STOP BATCH")
-        self.btn_stop_batch.setStyleSheet("background: #c0392b; color: white; font-weight: bold;")
+        apply_kind(self.btn_stop_batch, "danger")  # PR-5e
         self.btn_stop_batch.clicked.connect(self.action_stop_batch)
         self.btn_stop_batch.setEnabled(False)
         
@@ -258,17 +262,12 @@ class EditorTab(QWidget):
         layout.addWidget(self.txt_batch_log)
 
     def _apply_styles(self):
-        self.setStyleSheet("""
-            QWidget { background: #121212; color: #eee; font-family: 'Segoe UI'; }
-            QListWidget { background: #1e1e1e; border: 1px solid #333; }
-            QListWidget::item { padding: 8px; border-bottom: 1px solid #333; }
-            QListWidget::item:selected { background: #2980b9; }
-            QPushButton { background: #444; border: 1px solid #555; padding: 6px; border-radius: 4px; }
-            QPushButton:hover { background: #555; }
-            QTabWidget::pane { border: 1px solid #444; }
-            QTabBar::tab { background: #252526; padding: 8px 20px; border-top-left-radius: 4px; border-top-right-radius: 4px; }
-            QTabBar::tab:selected { background: #3e3e42; border-bottom: 2px solid #00e6e6; }
-        """)
+        # PR-5e: previously injected a local stylesheet that duplicated (and
+        # diverged from) the global DARK_THEME_STYLESHEET applied at app start.
+        # The global theme now owns QListWidget / QPushButton / QTabWidget /
+        # QTabBar styling for every tab, so this method is intentionally a
+        # no-op. Kept as a hook for future Editor-specific tweaks.
+        return None
 
     # ========================================================================
     # 🧠 LOGIC XỬ LÝ DỮ LIỆU

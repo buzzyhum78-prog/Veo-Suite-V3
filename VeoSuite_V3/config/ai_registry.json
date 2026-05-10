@@ -97,6 +97,17 @@
                 "stock-video"
             ]
         },
+        "pixabay": {
+            "name": "Pixabay Stock",
+            "type": "stock",
+            "api_key": "",
+            "reg_url": "https://pixabay.com/api/docs/",
+            "models": [
+                "stock-video",
+                "stock-image",
+                "stock-audio"
+            ]
+        },
         "edge": {
             "name": "⭐ Microsoft Edge Free",
             "type": "custom",

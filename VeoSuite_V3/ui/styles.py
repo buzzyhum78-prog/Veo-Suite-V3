@@ -147,6 +147,265 @@ QPushButton[type="warning"]:hover {
     background-color: #D35400;
 }
 
+/* PR-5e: Semantic button "kind" — set via ui.style_kit.apply_kind(btn, "<kind>").
+   Consolidates the ~70+ inline setStyleSheet(...) calls that used to
+   bake colours into every tab. Keep colours in sync with
+   ui/style_kit.py::KIND_COLORS. */
+
+QPushButton[kind="primary"] {
+    background-color: #3498DB;
+    color: #FFFFFF;
+    font-weight: bold;
+    border: none;
+}
+QPushButton[kind="primary"]:hover {
+    background-color: #2980B9;
+}
+
+QPushButton[kind="success"] {
+    background-color: #27AE60;
+    color: #FFFFFF;
+    font-weight: bold;
+    border: none;
+}
+QPushButton[kind="success"]:hover {
+    background-color: #229954;
+}
+
+QPushButton[kind="warning"] {
+    background-color: #E67E22;
+    color: #FFFFFF;
+    font-weight: bold;
+    border: none;
+}
+QPushButton[kind="warning"]:hover {
+    background-color: #D35400;
+}
+
+QPushButton[kind="danger"] {
+    background-color: #E74C3C;
+    color: #FFFFFF;
+    font-weight: bold;
+    border: none;
+}
+QPushButton[kind="danger"]:hover {
+    background-color: #C0392B;
+}
+
+QPushButton[kind="info"] {
+    background-color: #34495E;
+    color: #FFFFFF;
+    font-weight: 500;
+    border: 1px solid #555555;
+}
+QPushButton[kind="info"]:hover {
+    background-color: #3D566E;
+}
+
+QPushButton[kind="muted"] {
+    background-color: #555555;
+    color: #CCCCCC;
+    border: 1px solid #444444;
+}
+QPushButton[kind="muted"]:hover {
+    background-color: #666666;
+}
+
+QPushButton[kind="ai_magic"] {
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8E2DE2, stop:1 #4A00E0);
+    color: #FFFFFF;
+    font-weight: bold;
+    border: none;
+}
+QPushButton[kind="ai_magic"]:hover {
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #9B59B6, stop:1 #8E44AD);
+}
+
+/* PR-5e: Coloured group-box "accent" — set via ui.style_kit.apply_accent(grp, "<accent>").
+   Consolidates the per-tab inline border colours (Edge TTS green,
+   OpenAI purple, Google red, Custom yellow, Proxy blue, ...). Keep
+   colours in sync with ui/style_kit.py::ACCENT_COLORS. */
+
+QGroupBox[accent="emerald"] {
+    border: 1px solid #2ECC71;
+    font-weight: bold;
+    margin-top: 10px;
+}
+QGroupBox[accent="emerald"]::title { color: #2ECC71; }
+
+QGroupBox[accent="lilac"] {
+    border: 1px solid #9B59B6;
+    font-weight: bold;
+    margin-top: 10px;
+}
+QGroupBox[accent="lilac"]::title { color: #9B59B6; }
+
+QGroupBox[accent="red"] {
+    border: 1px solid #E74C3C;
+    font-weight: bold;
+    margin-top: 10px;
+}
+QGroupBox[accent="red"]::title { color: #E74C3C; }
+
+QGroupBox[accent="amber"] {
+    border: 1px solid #F1C40F;
+    font-weight: bold;
+    margin-top: 10px;
+}
+QGroupBox[accent="amber"]::title { color: #F1C40F; }
+
+QGroupBox[accent="blue"] {
+    border: 1px solid #3498DB;
+    font-weight: bold;
+    margin-top: 10px;
+}
+QGroupBox[accent="blue"]::title { color: #3498DB; }
+
+QGroupBox[accent="slate"] {
+    border: 1px solid #555555;
+    font-weight: bold;
+    margin-top: 10px;
+}
+QGroupBox[accent="slate"]::title { color: #AAAAAA; }
+
+QGroupBox[accent="cyan"] {
+    border: 1px solid #00E6E6;
+    background: #252526;
+    font-weight: bold;
+    margin-top: 10px;
+}
+QGroupBox[accent="cyan"]::title { color: #00E6E6; }
+
+/* PR-5e: Named-object selectors for recurring widget patterns. */
+
+QLabel#hintLabel {
+    color: #AAAAAA;
+    font-style: italic;
+}
+
+QLabel#adminTitleLabel {
+    font-size: 18px;
+    font-weight: bold;
+    color: #F1C40F;
+    margin-bottom: 10px;
+}
+
+QLabel#sectionTitleLabel {
+    font-size: 18px;
+    font-weight: bold;
+    color: #00E6E6;
+    padding: 5px;
+}
+
+QTabWidget#adminSubTabs::pane {
+    border: 1px solid #444444;
+}
+QTabWidget#adminSubTabs QTabBar::tab {
+    min-width: 150px;
+    padding: 8px 16px;
+}
+
+QScrollArea#transparentScroll {
+    border: none;
+    background: transparent;
+}
+
+QPushButton#externalLinkButton {
+    color: #3498DB;
+    background: transparent;
+    border: 1px dashed #3498DB;
+}
+QPushButton#externalLinkButton:hover {
+    color: #5DADE2;
+    border: 1px dashed #5DADE2;
+}
+
+QLabel#infoBanner {
+    background: #2C3E50;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+QFrame#statsCard {
+    background: #252526;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+QTextEdit#consoleArea {
+    background: #0A0A0A;
+    color: #00E676;
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    border: none;
+}
+
+QFrame#editorHeader {
+    background: #252526;
+    border-bottom: 1px solid #333333;
+}
+
+QFrame#previewContainer {
+    background: #000000;
+    border: 2px solid #444444;
+}
+
+QLabel#subtitleOverlay {
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 100);
+    padding: 5px;
+}
+
+QFrame#propertyPanel {
+    background: #1E1E1E;
+    border-left: 1px solid #333333;
+}
+
+QLabel#timelineLabel {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+QScrollArea#timelineScroll {
+    background: #252526;
+    border: none;
+}
+
+QScrollArea#contentEditorScroll {
+    border: none;
+    background: #2D2D30;
+}
+
+QFrame#contentActionBar {
+    background: #252526;
+    border-top: 1px solid #3E3E42;
+}
+
+QFrame#controlContainer {
+    background: #252526;
+    border-top: 2px solid #444444;
+}
+
+QFrame#mediaActionBar {
+    background: #252526;
+    border-bottom: 1px solid #333333;
+}
+
+QScrollArea#mediaBenchScroll {
+    border: none;
+    background: #1E1E1E;
+}
+
+/* QProgressBar variant selectors. The default chunk colour is #00E676 (green);
+   widgets that prefer the blue/primary accent set:
+       widget.setProperty("chunkColor", "primary")
+   and the QSS engine re-polishes them automatically. */
+QProgressBar[chunkColor="primary"]::chunk { background-color: #3498DB; }
+QProgressBar[chunkColor="warning"]::chunk { background-color: #F39C12; }
+QProgressBar[chunkColor="danger"]::chunk { background-color: #E74C3C; }
+
 /* =========================================================
    3. INPUTS & LISTS
 ========================================================= */

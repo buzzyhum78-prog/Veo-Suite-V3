@@ -1,9 +1,14 @@
-import os
 import json
+import logging
+import os
 import uuid
+
+logger = logging.getLogger("VeoSuite.Publisher.AccountManager")
+
 
 class PublisherAccountManager:
     """Quản lý thông tin đăng nhập/API Keys của các tài khoản xuất bản đa nền tảng"""
+
     def __init__(self):
         self.db_path = "VEO_DB/publisher_accounts.json"
         self._ensure_db_exists()
@@ -19,7 +24,7 @@ class PublisherAccountManager:
             with open(self.db_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"[AccountManager] Lỗi đọc DB: {e}")
+            logger.info(f"[AccountManager] Lỗi đọc DB: {e}")
             return []
 
     def save_accounts(self, accounts: list):
@@ -27,7 +32,7 @@ class PublisherAccountManager:
             with open(self.db_path, "w", encoding="utf-8") as f:
                 json.dump(accounts, f, indent=4, ensure_ascii=False)
         except Exception as e:
-            print(f"[AccountManager] Lỗi lưu DB: {e}")
+            logger.info(f"[AccountManager] Lỗi lưu DB: {e}")
 
     def add_account(self, platform: str, account_name: str, credentials: dict):
         accounts = self.load_accounts()
@@ -36,7 +41,7 @@ class PublisherAccountManager:
             "platform": platform,
             "account_name": account_name,
             "credentials": credentials,
-            "status": "Vừa thêm mới"
+            "status": "Vừa thêm mới",
         }
         accounts.append(new_acc)
         self.save_accounts(accounts)

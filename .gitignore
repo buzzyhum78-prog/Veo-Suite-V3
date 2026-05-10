@@ -1,21 +1,103 @@
-# Bỏ qua môi trường ảo Python
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
 venv/
 env/
+.venv/
 .env
+.envrc
 
-# Bỏ qua các file cache và lịch sử
-__pycache__/
-*.pyc
+# Build / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+.eggs/
+
+# Caches & test
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyright/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 
-# Bỏ qua các file nén và media nặng (nếu có)
+# =============================================================================
+# Veo Suite — secrets & local data (NEVER commit)
+# =============================================================================
+# YouTube/Google session cookies
+cookies.txt
+*cookies*.txt
+
+# OAuth client secrets / service account credentials
+*client_secret*.json
+*credentials*.json
+oauth_token.json
+token.json
+token.pickle
+
+# User settings (may contain API keys, paths, runtime state)
+VeoSuite_V3/config/settings.json
+VeoSuite_V3/config/voice_engine_config.json
+VeoSuite_V3/config/api_keys.json
+VeoSuite_V3/config/*.local.json
+
+# Local databases & runtime data
+VEO_DB/
+VEO_TEMP/
+VeoSuite_V3/database/*.db
+VeoSuite_V3/database/*.db-journal
+VeoSuite_V3/database/*.db-wal
+VeoSuite_V3/database/*.db-shm
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Render / temp output
+output/
+renders/
+temp/
+tmp/
+
+# =============================================================================
+# Heavy media & archives (do not version)
+# =============================================================================
 *.rar
 *.zip
+*.7z
 *.mp4
 *.mp3
+*.wav
+*.flac
 *.avi
 *.mov
+*.mkv
+*.webm
 
-# Bỏ qua cơ sở dữ liệu local (nếu dùng SQLite)
+# SQLite / embedded DB files
+*.sqlite
 *.sqlite3
 *.db
+*.db-journal
+
+# =============================================================================
+# Editor / OS
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

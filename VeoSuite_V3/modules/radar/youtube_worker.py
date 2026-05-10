@@ -1,4 +1,5 @@
 
+import logging
 import os
 import sys
 import time
@@ -48,6 +49,9 @@ except ImportError:
 
 
 from modules.radar.constants import *
+
+logger = logging.getLogger("VeoSuite.Radar.YouTubeWorker")
+
 
 class RealYouTubeWorker(QThread):
     progress = pyqtSignal(int)
@@ -301,12 +305,12 @@ class RealYouTubeWorker(QThread):
                 search_params["relevanceLanguage"] = lang_code
 
                 # [DEBUG LOG] In ra để CEO kiểm tra xem nó có nhận đúng không
-                print(f"   >>> API Search Config: Region={region_code} | Lang={lang_code} | Kw='{keyword}'")
+                logger.info(f"   >>> API Search Config: Region={region_code} | Lang={lang_code} | Kw='{keyword}'")
             # Gọi API
             search_response = youtube_service.search().list(**search_params).execute()
             return search_response.get('items', [])
         except Exception as e:
-            print(f"⚠️ Lỗi tìm kiếm '{keyword}': {e}")
+            logger.info(f"⚠️ Lỗi tìm kiếm '{keyword}': {e}")
             raise e  
     
     def run(self):
@@ -317,7 +321,7 @@ class RealYouTubeWorker(QThread):
         from googleapiclient.discovery import build
         from googleapiclient.errors import HttpError # Để bắt lỗi Quota
         
-        print("\n⚡ [DEBUG] WORKER ĐANG CHẠY - CHẾ ĐỘ 'XE TĂNG' (VÉT CẠN) ⚡\n")
+        logger.info("\n⚡ [DEBUG] WORKER ĐANG CHẠY - CHẾ ĐỘ 'XE TĂNG' (VÉT CẠN) ⚡\n")
 
         # 1. LOAD KEYS
         raw_keys = self.ai_factory.registry["providers"]["youtube"].get("api_key", "")
@@ -332,8 +336,8 @@ class RealYouTubeWorker(QThread):
         youtube = None
         try:
             youtube = build('youtube', 'v3', developerKey=api_keys[current_key_index])
-        except:
-            print(f"⚠️ Key đầu tiên lỗi, sẽ thử key tiếp theo trong vòng lặp.")
+        except Exception:
+            logger.info(f"⚠️ Key đầu tiên lỗi, sẽ thử key tiếp theo trong vòng lặp.")
 
         # 2. XÁC ĐỊNH CHIẾN LƯỢC QUÉT (SMART FALLBACK STRATEGY)
         # Tạo ra các "Tầng" quét dựa trên lựa chọn của CEO
@@ -355,7 +359,7 @@ class RealYouTubeWorker(QThread):
         total_items = len(self.data_queue)
         #current_key_index = 0
         #try: youtube = build('youtube', 'v3', developerKey=api_keys[0])
-        #except: pass
+        #except Exception: pass
         now_utc = datetime.datetime.now(timezone.utc)
 
         # --- VÒNG LẶP TỪ KHÓA ---
@@ -398,10 +402,10 @@ class RealYouTubeWorker(QThread):
                     if youtube is None:
                         try:
                             youtube = build('youtube', 'v3', developerKey=api_keys[current_key_index])
-                        except:
-                            print("⚠️ Lỗi khởi tạo Key, thử key kế...")
+                        except Exception:
+                            logger.info("⚠️ Lỗi khởi tạo Key, thử key kế...")
                             current_key_index = (current_key_index + 1) % len(api_keys)
-                            attempts_with_current_confi += 1
+                            attempts_with_current_config += 1
                             continue
 
                     try:
@@ -409,7 +413,7 @@ class RealYouTubeWorker(QThread):
                         video_items = self._search_youtube_api(youtube, kw, published_after, current_region_code)
                         
                         if not video_items: 
-                            # print(f"   ⚠️ Key {current_key_index} trả về 0 kết quả cho '{kw}'.")
+                            # logger.info(f"   ⚠️ Key {current_key_index} trả về 0 kết quả cho '{kw}'.")
                             break # Key sống nhưng ko có data -> Break để sang mốc thời gian khác
 
                         video_ids = [item['id']['videoId'] for item in video_items]
@@ -493,7 +497,7 @@ class RealYouTubeWorker(QThread):
                                 elif days_old < 30: recency_label = f"✅ {days_old} ngày"
                                 elif days_old > 730: recency_label = f"💀 {days_old} ngày"
                                 else: recency_label = f"⚪ {days_old} ngày"
-                            except: 
+                            except Exception: 
                                 days_old = 999; recency_label = "Old"
                             
                             if days_old < 1: days_old = 1
@@ -539,7 +543,7 @@ class RealYouTubeWorker(QThread):
                             thumbnails = snippet.get('thumbnails', {})
                             thumb_url = thumbnails.get('maxres', thumbnails.get('high', thumbnails.get('medium')))['url']
                             try: thumb_bytes = requests.get(thumb_url, timeout=3).content
-                            except: thumb_bytes = None
+                            except Exception: thumb_bytes = None
                             
                             video_data = {
                                 "id": vid_id, 
@@ -590,7 +594,7 @@ class RealYouTubeWorker(QThread):
 
                         # --- XỬ LÝ LỖI ---
                         if "quota" in error_msg.lower() or "403" in error_msg:
-                            print(f"⚠️ Key {current_key_index} HẾT HẠN (Quota). Đổi Key...")
+                            logger.info(f"⚠️ Key {current_key_index} HẾT HẠN (Quota). Đổi Key...")
                             current_key_index = (current_key_index + 1) % len(api_keys)
                             youtube = None # Reset để vòng lặp sau init lại
                             
@@ -602,14 +606,14 @@ class RealYouTubeWorker(QThread):
                             
                             # Đổi key mới
                             try: youtube = build('youtube', 'v3', developerKey=api_keys[current_key_index])
-                            except: pass
+                            except Exception: pass
                             
                         elif "Unable to find" in error_msg or "Connection" in error_msg:
-                            print(f"⚠️ Lỗi mạng. Đợi 5s...")
+                            logger.info(f"⚠️ Lỗi mạng. Đợi 5s...")
                             time.sleep(5)
                             # Không tăng index, thử lại key cũ
                         else:
-                            print(f"⚠️ Lỗi lạ ({error_msg}). Bỏ qua keyword này.")
+                            logger.info(f"⚠️ Lỗi lạ ({error_msg}). Bỏ qua keyword này.")
                             break # Lỗi lạ thì bỏ qua từ khóa này luôn, sang từ khóa tiếp theo
 
             self.progress.emit(int((idx + 1) / total_items * 100))
