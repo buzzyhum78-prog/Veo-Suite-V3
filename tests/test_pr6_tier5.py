@@ -285,13 +285,18 @@ class TestT6_2_Telemetry(unittest.TestCase):
         for _ in range(50):
             sink.record("feature_used", name="x" * 32)
         rotated = self.path.with_suffix(self.path.suffix + ".1")
+        # Contract: rotation fires when the active file would exceed
+        # ``max_bytes`` on the next append. After 50 writes against a
+        # 128 B cap, the rotated archive MUST exist and be non-empty.
         self.assertTrue(rotated.exists())
-        # After 50 writes against a 128B threshold, the rotated archive
-        # must be at least as large as the active file (rotation always
-        # promotes the *bigger* file to ``.1``).
-        self.assertGreaterEqual(rotated.stat().st_size, self.path.stat().st_size)
-        # And we should have written enough cumulative bytes to fill
-        # multiple buckets — both files combined must exceed the cap.
+        self.assertGreater(rotated.stat().st_size, 0)
+        # We should have written enough cumulative bytes to require at
+        # least one rotation pass — both files combined must exceed
+        # the threshold. (The earlier ``rotated >= active`` invariant
+        # was timestamp-dependent: when an ISO timestamp lands on an
+        # exact-second boundary, ``datetime.isoformat()`` drops the
+        # microsecond suffix and shortens that single line by 7 bytes,
+        # so the relative sizes are not a stable rotation property.)
         total = self.path.stat().st_size + rotated.stat().st_size
         self.assertGreater(total, 128)
 
