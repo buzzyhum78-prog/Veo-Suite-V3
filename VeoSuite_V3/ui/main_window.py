@@ -339,15 +339,48 @@ class MainWindow(QMainWindow):
         self.content_tab.receive_data_from_radar(data)
 
     def closeEvent(self, event):
-        """Hàm dọn dẹp các tiến trình ngầm (Graceful Shutdown)"""
+        """Hàm dọn dẹp các tiến trình ngầm (Graceful Shutdown).
+
+        Lifecycle order (each step swallows its own exception so a single
+        failure cannot block the rest):
+          1. Publisher scheduler stop (legacy).
+          2. ``plugin_manager.shutdown()`` — dispatches ``on_app_shutdown``
+             to every loaded plugin in reverse load order.
+          3. ``telemetry.record('session_ended')`` — best-effort, only
+             runs when the sink is enabled (opt-in default stays opt-out).
+        """
+        import logging
+        logger = logging.getLogger("VeoSuite")
         try:
             self.log_message("🔴 Đang dọn dẹp các tiến trình ngầm trước khi thoát...")
-            # Tắt Scheduler nếu có
-            if hasattr(self, 'publisher_tab') and hasattr(self.publisher_tab, 'scheduler'):
-                self.publisher_tab.scheduler.stop()
-            # Có thể thêm logic stop các worker khác tại đây nếu cần
-            import time
-            time.sleep(0.2)
-        except:
+        except Exception:
             pass
+
+        # 1. Legacy scheduler (kept from PR-4).
+        try:
+            if hasattr(self, "publisher_tab") and hasattr(self.publisher_tab, "scheduler"):
+                self.publisher_tab.scheduler.stop()
+        except Exception:
+            logger.exception("Publisher scheduler stop failed (non-fatal)")
+
+        # 2. Plugin shutdown — PR-7. Wire here (not in main.py) because by
+        # the time main.py's app.exec() returns Qt has already torn down
+        # widgets; closeEvent is the last hook where plugins still see a
+        # live host.
+        try:
+            if self.plugin_manager is not None:
+                ok, errs = self.plugin_manager.shutdown({"app": None, "db": self.db})
+                logger.info("Plugins shutdown: %d ok, %d errors", ok, len(errs))
+        except Exception:
+            logger.exception("Plugin shutdown raised (non-fatal)")
+
+        # 3. Telemetry session marker — only writes when sink is enabled.
+        try:
+            from services import telemetry
+            telemetry.record("session_ended")
+        except Exception:
+            logger.exception("Telemetry session_ended record failed (non-fatal)")
+
+        import time
+        time.sleep(0.2)
         event.accept()
