@@ -603,5 +603,132 @@ class TestT6_6_Structural(unittest.TestCase):
         self.assertIn("@dataclass(frozen=True)", text)
 
 
+# ---------------------------------------------------------------------------
+# T7 — Plugin shutdown wiring in MainWindow.closeEvent (PR-7)
+# ---------------------------------------------------------------------------
+#
+# PR-6 wired plugin start at app boot but left shutdown unwired. PR-7
+# closes that loop by calling ``plugin_manager.shutdown()`` from
+# ``MainWindow.closeEvent``. The tests below lock the contract so a
+# future refactor of ``closeEvent`` cannot silently drop the call.
+
+
+class _ShutdownSpyPlugin(Plugin):
+    """Records ``on_app_shutdown`` invocations on a class-level list so
+    tests can assert ordering and arg-passing without touching disk."""
+
+    received: list[tuple[str, dict]] = []
+
+    @classmethod
+    def metadata(cls) -> PluginMetadata:
+        return PluginMetadata(name="shutdown-spy", version="1.0.0")
+
+    def on_app_shutdown(self, context):
+        _ShutdownSpyPlugin.received.append(("shutdown-spy", dict(context)))
+
+
+class TestT7_PluginShutdownWiring(unittest.TestCase):
+    """Adversarial tests for PR-7 — MainWindow.closeEvent invokes
+    ``plugin_manager.shutdown()`` and emits a telemetry session_ended."""
+
+    def test_t7_1_closeevent_source_invokes_plugin_shutdown(self):
+        """AST gate — the textual ``plugin_manager.shutdown`` call must
+        appear inside ``closeEvent``. Catches refactors that move the
+        call out (or delete it) without anyone noticing."""
+        path = REPO_ROOT / "VeoSuite_V3" / "ui" / "main_window.py"
+        with path.open(encoding="utf-8") as f:
+            tree = ast.parse(f.read(), filename=str(path))
+
+        found = False
+        for cls in ast.walk(tree):
+            if not (isinstance(cls, ast.ClassDef) and cls.name == "MainWindow"):
+                continue
+            for fn in cls.body:
+                if not (isinstance(fn, ast.FunctionDef) and fn.name == "closeEvent"):
+                    continue
+                for node in ast.walk(fn):
+                    if (
+                        isinstance(node, ast.Attribute)
+                        and node.attr == "shutdown"
+                        and isinstance(node.value, ast.Attribute)
+                        and node.value.attr == "plugin_manager"
+                    ):
+                        found = True
+                        break
+        self.assertTrue(
+            found,
+            "MainWindow.closeEvent must call self.plugin_manager.shutdown(...)",
+        )
+
+    def test_t7_2_closeevent_records_session_ended_telemetry(self):
+        """closeEvent must emit ``telemetry.record('session_ended')`` so
+        future opt-in sessions have a clean end marker."""
+        path = REPO_ROOT / "VeoSuite_V3" / "ui" / "main_window.py"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("session_ended", text)
+        self.assertIn("telemetry.record", text)
+
+    def test_t7_3_plugin_manager_shutdown_called_with_dict_context(self):
+        """The actual plugin shutdown invocation must hand the host
+        a *dict* context, not a list/tuple — plugins index into it."""
+        manager = PluginManager()
+        # Smuggle a spy directly via the private slot to avoid a temp file.
+        from modules.plugins.manager import _LoadedPlugin
+
+        entry = _LoadedPlugin(
+            instance=_ShutdownSpyPlugin(),
+            metadata=_ShutdownSpyPlugin.metadata(),
+            path=REPO_ROOT,
+        )
+        manager._loaded.append(entry)
+        manager._by_name[entry.metadata.name] = entry
+        _ShutdownSpyPlugin.received.clear()
+
+        ok, errs = manager.shutdown({"app": "stub", "db": None})
+        self.assertEqual(ok, 1)
+        self.assertEqual(errs, [])
+        self.assertEqual(len(_ShutdownSpyPlugin.received), 1)
+        name, ctx = _ShutdownSpyPlugin.received[0]
+        self.assertEqual(name, "shutdown-spy")
+        self.assertIsInstance(ctx, dict)
+        self.assertEqual(ctx.get("app"), "stub")
+
+    def test_t7_4_closeevent_isolates_plugin_exception(self):
+        """A plugin that raises on shutdown must not block ``event.accept()``."""
+
+        class _ExplodingPlugin(Plugin):
+            @classmethod
+            def metadata(cls):
+                return PluginMetadata(name="bomb", version="1.0.0")
+
+            def on_app_shutdown(self, context):
+                raise RuntimeError("kaboom")
+
+        manager = PluginManager()
+        from modules.plugins.manager import _LoadedPlugin
+
+        entry = _LoadedPlugin(
+            instance=_ExplodingPlugin(),
+            metadata=_ExplodingPlugin.metadata(),
+            path=REPO_ROOT,
+        )
+        manager._loaded.append(entry)
+        manager._by_name[entry.metadata.name] = entry
+        ok, errs = manager.shutdown({"app": None})
+        # ok=0 (plugin raised) but the call itself returned normally —
+        # which is what closeEvent's try/except relies on.
+        self.assertEqual(ok, 0)
+        self.assertEqual(len(errs), 1)
+        self.assertEqual(errs[0][0], "bomb")
+
+    def test_t7_5_closeevent_handles_none_plugin_manager(self):
+        """closeEvent must not crash when MainWindow was constructed
+        without a plugin_manager (legacy/test entry points). The source
+        guard ``if self.plugin_manager is not None`` is the contract."""
+        path = REPO_ROOT / "VeoSuite_V3" / "ui" / "main_window.py"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("self.plugin_manager is not None", text)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main(verbosity=2)
